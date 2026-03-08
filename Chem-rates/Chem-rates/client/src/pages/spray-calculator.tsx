@@ -4,7 +4,12 @@ import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { StatCard } from "@/components/ui/stat-card";
 import { useCreateSprayCalculation } from "@/hooks/use-spray-calculations";
-import { WEED_OPTIONS, calculateSprayMix, formatResultJson } from "@/lib/calculator-logic";
+import {
+  fetchWeedRows,
+  getWeedOptions,
+  calculateSprayMixFromSheet,
+  type SheetWeedRow,
+} from "../lib/calculator-logic";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SprayCalculator() {
