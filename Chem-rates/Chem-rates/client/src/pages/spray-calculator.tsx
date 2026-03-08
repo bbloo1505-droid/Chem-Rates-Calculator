@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
@@ -8,52 +8,94 @@ import {
   fetchWeedRows,
   getWeedOptions,
   calculateSprayMixFromSheet,
+  formatResultJson,
   type SheetWeedRow,
 } from "../lib/calculator-logic";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SprayCalculator() {
-  const [weed, setWeed] = useState<string>(WEED_OPTIONS[0]);
+  const [weedRows, setWeedRows] = useState<SheetWeedRow[]>([]);
+  const [weedOptions, setWeedOptions] = useState<string[]>([]);
+  const [loadingWeeds, setLoadingWeeds] = useState(true);
+  const [weedError, setWeedError] = useState("");
+
+  const [weed, setWeed] = useState<string>("");
   const [volume, setVolume] = useState<string>("");
-  const [siteType, setSiteType] = useState<'bush' | 'coastal'>('bush');
-  const [dyeStrength, setDyeStrength] = useState<'none' | 'standard' | 'strong'>('standard');
-  
+  const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
+  const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
+
   const { toast } = useToast();
   const createMutation = useCreateSprayCalculation();
 
+  useEffect(() => {
+    fetchWeedRows()
+      .then((rows) => {
+        setWeedRows(rows);
+        const options = getWeedOptions(rows);
+        setWeedOptions(options);
+        setWeed(options[0] || "");
+        setLoadingWeeds(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setWeedError("Could not load weeds from Google Sheets.");
+        setLoadingWeeds(false);
+      });
+  }, []);
+
   const volumeNum = parseFloat(volume);
   const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed;
-  
-  const results = isValid ? calculateSprayMix(weed, volumeNum, siteType, dyeStrength) : [];
+
+  const results = isValid
+    ? calculateSprayMixFromSheet(weed, volumeNum, siteType, dyeStrength, weedRows)
+    : [];
 
   const handleSave = () => {
     if (!isValid) return;
-    
-    createMutation.mutate({
-      weed,
-      volume: volumeNum,
-      siteType,
-      dyeStrength,
-      results: formatResultJson(results)
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "Saved to History",
-          description: "Mix calculation successfully recorded.",
-          duration: 3000,
-        });
+
+    createMutation.mutate(
+      {
+        weed,
+        volume: volumeNum,
+        siteType,
+        dyeStrength,
+        results: formatResultJson(results),
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Saved to History",
+            description: "Mix calculation successfully recorded.",
+            duration: 3000,
+          });
+        },
       }
-    });
+    );
   };
+
+  if (loadingWeeds) {
+    return (
+      <MobileLayout title="Mix Calculator">
+        <div className="p-4 text-center text-muted-foreground">Loading weed database...</div>
+      </MobileLayout>
+    );
+  }
+
+  if (weedError) {
+    return (
+      <MobileLayout title="Mix Calculator">
+        <div className="p-4 text-center text-red-500">{weedError}</div>
+      </MobileLayout>
+    );
+  }
 
   return (
     <MobileLayout title="Mix Calculator">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        {/* WEED SELECTION */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <Leaf className="w-4 h-4 text-primary" /> Target Weed
@@ -64,20 +106,29 @@ export default function SprayCalculator() {
               onChange={(e) => setWeed(e.target.value)}
               className="w-full outdoor-input h-14 appearance-none pr-10"
             >
-              <option value="" disabled>Select a weed...</option>
-              {WEED_OPTIONS.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
+              <option value="" disabled>
+                Select a weed...
+              </option>
+              {weedOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
               <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M1 1.5L6 6.5L11 1.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </div>
           </div>
         </div>
 
-        {/* VOLUME INPUT */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
@@ -92,20 +143,19 @@ export default function SprayCalculator() {
           />
         </div>
 
-        {/* SITE TYPE & DYE GRID */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
               <MapPin className="w-4 h-4 text-primary" /> Site Type
             </label>
             <div className="flex bg-muted/50 p-1 rounded-xl">
-              {(['bush', 'coastal'] as const).map(type => (
+              {(["bush", "coastal"] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setSiteType(type)}
                   className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                    siteType === type 
-                      ? "bg-white shadow-sm text-primary" 
+                    siteType === type
+                      ? "bg-white shadow-sm text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -120,27 +170,26 @@ export default function SprayCalculator() {
               <Droplet className="w-4 h-4 text-primary" /> Dye
             </label>
             <div className="flex bg-muted/50 p-1 rounded-xl">
-              {(['none', 'standard', 'strong'] as const).map(type => (
+              {(["none", "standard", "strong"] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setDyeStrength(type)}
                   className={`flex-1 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
-                    dyeStrength === type 
-                      ? "bg-white shadow-sm text-primary" 
+                    dyeStrength === type
+                      ? "bg-white shadow-sm text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {type === 'standard' ? 'Std' : type}
+                  {type === "standard" ? "Std" : type}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* RESULTS AREA */}
         <AnimatePresence>
           {isValid && results.length > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -152,16 +201,20 @@ export default function SprayCalculator() {
                   {volumeNum}L Total
                 </span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 {results.map((res, i) => (
-                  <StatCard 
-                    key={res.ingredient}
+                  <StatCard
+                    key={`${res.ingredient}-${i}`}
                     title={res.ingredient}
                     value={res.amount % 1 === 0 ? res.amount : res.amount.toFixed(1)}
                     unit={res.unit}
                     delay={i * 0.1}
-                    highlight={res.ingredient === 'Glyphosate' || res.ingredient === 'Fluroxy' || res.ingredient === 'Mets'}
+                    highlight={
+                      res.ingredient === "Glyphosate" ||
+                      res.ingredient === "Fluroxy" ||
+                      res.ingredient === "Mets"
+                    }
                   />
                 ))}
               </div>
@@ -174,7 +227,9 @@ export default function SprayCalculator() {
                 disabled={createMutation.isPending}
                 className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
               >
-                {createMutation.isPending ? "Saving..." : (
+                {createMutation.isPending ? (
+                  "Saving..."
+                ) : (
                   <>
                     <CheckCircle2 className="w-6 h-6 text-secondary" />
                     Save to History
@@ -184,8 +239,7 @@ export default function SprayCalculator() {
             </motion.div>
           )}
         </AnimatePresence>
-        
-        {/* Bottom spacer for scroll */}
+
         <div className="h-8" />
       </motion.div>
     </MobileLayout>
