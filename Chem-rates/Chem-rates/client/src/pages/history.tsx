@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Loader2, MapPin, Package, Sprout, Archive, BarChart3 } from "lucide-react";
+import { Loader2, MapPin, Package, Sprout, Archive, BarChart3, Trash2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 
 type SprayHistoryItem = {
@@ -37,6 +37,10 @@ export default function HistoryPage() {
   const [sprayLoading, setSprayLoading] = useState(true);
 
   useEffect(() => {
+    loadSprayHistory();
+  }, []);
+
+  const loadSprayHistory = () => {
     try {
       const storedSpray = localStorage.getItem("sprayHistory");
       const parsedSpray = storedSpray ? JSON.parse(storedSpray) : [];
@@ -47,7 +51,27 @@ export default function HistoryPage() {
     } finally {
       setSprayLoading(false);
     }
-  }, []);
+  };
+
+  const deleteSprayEntry = (savedAt?: string, index?: number) => {
+    const existing = localStorage.getItem("sprayHistory");
+    const history = existing ? JSON.parse(existing) : [];
+
+    const updated = history.filter((item: SprayHistoryItem, i: number) => {
+      if (savedAt) {
+        return item.savedAt !== savedAt;
+      }
+      return i !== index;
+    });
+
+    localStorage.setItem("sprayHistory", JSON.stringify(updated));
+    setSprayData(updated);
+  };
+
+  const clearAllSprayHistory = () => {
+    localStorage.removeItem("sprayHistory");
+    setSprayData([]);
+  };
 
   const summaries = useMemo<SummaryGroup[]>(() => {
     const grouped: Record<string, SummaryGroup> = {};
@@ -119,6 +143,18 @@ export default function HistoryPage() {
           </button>
         </div>
 
+        {tab === "spray" && sprayData.length > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={clearAllSprayHistory}
+              className="flex items-center gap-2 text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-2 rounded-xl"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear all
+            </button>
+          </div>
+        )}
+
         <div className="pb-20">
           <AnimatePresence mode="wait">
             {tab === "spray" && (
@@ -142,6 +178,7 @@ export default function HistoryPage() {
                       className="tactile-card p-5 rounded-2xl relative overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-2 h-full bg-primary/20" />
+
                       <div className="flex justify-between items-start mb-3 border-b border-border/50 pb-3">
                         <div>
                           <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
@@ -157,9 +194,19 @@ export default function HistoryPage() {
                             <span>{item.mixType || "other"}</span>
                           </div>
                         </div>
-                        <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
-                          {safeDateLabel(item.savedAt)}
-                        </span>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
+                            {safeDateLabel(item.savedAt)}
+                          </span>
+                          <button
+                            onClick={() => deleteSprayEntry(item.savedAt, index)}
+                            className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2">
@@ -215,7 +262,10 @@ export default function HistoryPage() {
 
                       <div className="space-y-3">
                         {Object.entries(group.mixTotals).map(([mixType, totalVolume]) => (
-                          <div key={mixType} className="rounded-xl border border-border/40 p-3 bg-background/50">
+                          <div
+                            key={mixType}
+                            className="rounded-xl border border-border/40 p-3 bg-background/50"
+                          >
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-bold text-foreground uppercase text-sm">
                                 {mixType}
