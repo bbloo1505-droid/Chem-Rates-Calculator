@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Clock, Loader2, MapPin, Package, Sprout, Archive } from "lucide-react";
+import { Clock, Loader2, MapPin, Package, Sprout, Archive, BarChart3 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 
 type SprayHistoryItem = {
+  siteName: string;
+  date: string; // YYYY-MM-DD
   weed: string;
+  mixType: string;
   volume: number;
   siteType: "bush" | "coastal";
   dyeStrength: "none" | "standard" | "strong";
@@ -13,22 +16,19 @@ type SprayHistoryItem = {
   savedAt: string;
 };
 
-type CalibrationHistoryItem = {
-  packSize: number;
-  litresPer100m2: number;
-  areaPerPack: number;
-  distanceWalked: number;
-  sprayWidth: number;
-  volumeUsed: number;
-  savedAt: string;
+type SummaryGroup = {
+  key: string;
+  siteName: string;
+  date: string;
+  entries: SprayHistoryItem[];
+  mixTotals: Record<string, number>;
+  weedsByMix: Record<string, string[]>;
 };
 
 export default function HistoryPage() {
-  const [tab, setTab] = useState<"spray" | "calibration">("spray");
+  const [tab, setTab] = useState<"spray" | "summary">("spray");
   const [sprayData, setSprayData] = useState<SprayHistoryItem[]>([]);
-  const [calibData, setCalibData] = useState<CalibrationHistoryItem[]>([]);
   const [sprayLoading, setSprayLoading] = useState(true);
-  const [calibLoading, setCalibLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -41,18 +41,45 @@ export default function HistoryPage() {
     } finally {
       setSprayLoading(false);
     }
-
-    try {
-      const storedCalib = localStorage.getItem("calibrationHistory");
-      const parsedCalib = storedCalib ? JSON.parse(storedCalib) : [];
-      setCalibData(parsedCalib);
-    } catch (error) {
-      console.error("Could not load calibration history:", error);
-      setCalibData([]);
-    } finally {
-      setCalibLoading(false);
-    }
   }, []);
+
+  const summaries = useMemo<SummaryGroup[]>(() => {
+    const grouped: Record<string, SummaryGroup> = {};
+
+    for (const entry of sprayData) {
+      const key = `${entry.date}__${entry.siteName}`;
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          key,
+          siteName: entry.siteName,
+          date: entry.date,
+          entries: [],
+          mixTotals: {},
+          weedsByMix: {},
+        };
+      }
+
+      grouped[key].entries.push(entry);
+
+      grouped[key].mixTotals[entry.mixType] =
+        (grouped[key].mixTotals[entry.mixType] || 0) + Number(entry.volume);
+
+      if (!grouped[key].weedsByMix[entry.mixType]) {
+        grouped[key].weedsByMix[entry.mixType] = [];
+      }
+
+      if (!grouped[key].weedsByMix[entry.mixType].includes(entry.weed)) {
+        grouped[key].weedsByMix[entry.mixType].push(entry.weed);
+      }
+    }
+
+    return Object.values(grouped).sort((a, b) => {
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.siteName.localeCompare(b.siteName);
+    });
+  }, [sprayData]);
 
   return (
     <MobileLayout title="History">
@@ -66,17 +93,17 @@ export default function HistoryPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Spray Mixes
+            Entries
           </button>
           <button
-            onClick={() => setTab("calibration")}
+            onClick={() => setTab("summary")}
             className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${
-              tab === "calibration"
+              tab === "summary"
                 ? "bg-white shadow-md text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Calibrations
+            Daily Summary
           </button>
         </div>
 
@@ -108,13 +135,14 @@ export default function HistoryPage() {
                           <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
                             <Sprout className="w-4 h-4 text-primary" /> {item.weed}
                           </h3>
-                          <div className="flex items-center gap-3 mt-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" /> {item.siteName}
+                            </span>
                             <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" /> {item.volume}L
                             </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" /> {item.siteType}
-                            </span>
+                            <span>{item.mixType}</span>
                           </div>
                         </div>
                         <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
@@ -141,69 +169,50 @@ export default function HistoryPage() {
               </motion.div>
             )}
 
-            {tab === "calibration" && (
+            {tab === "summary" && (
               <motion.div
-                key="calib"
+                key="summary"
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="space-y-4"
               >
-                {calibLoading ? (
+                {sprayLoading ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
                   </div>
-                ) : calibData.length === 0 ? (
-                  <EmptyState message="No calibrations saved yet." />
+                ) : summaries.length === 0 ? (
+                  <EmptyState message="No daily summaries yet." />
                 ) : (
-                  calibData.map((item, index) => (
-                    <div
-                      key={`${item.savedAt}-${index}`}
-                      className="tactile-card p-5 rounded-2xl"
-                    >
-                      <div className="flex justify-between items-center mb-4 border-b border-border/50 pb-3">
-                        <span className="text-sm text-muted-foreground font-bold flex items-center gap-1.5">
-                          <Clock className="w-4 h-4" />
-                          {item.savedAt
-                            ? format(new Date(item.savedAt), "MMM d, yyyy")
-                            : "Unknown date"}
-                        </span>
-                        <span className="bg-secondary/20 text-primary px-2 py-1 rounded-md text-xs font-bold">
-                          {item.packSize}L Pack
+                  summaries.map((group) => (
+                    <div key={group.key} className="tactile-card p-5 rounded-2xl">
+                      <div className="flex justify-between items-start mb-4 border-b border-border/50 pb-3">
+                        <div>
+                          <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-primary" />
+                            {group.siteName}
+                          </h3>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {format(new Date(group.date), "MMM d, yyyy")}
+                          </div>
+                        </div>
+                        <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                          {group.entries.length} entries
                         </span>
                       </div>
 
-                      <div className="flex gap-4">
-                        <div className="flex-1 bg-primary/5 rounded-xl p-3 border border-primary/10">
-                          <span className="text-xs uppercase font-bold text-primary/70 block mb-1">
-                            App Rate
-                          </span>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold font-display text-primary">
-                              {item.litresPer100m2.toFixed(1)}
-                            </span>
-                            <span className="text-xs font-bold text-primary/70">L/100m²</span>
+                      <div className="space-y-3">
+                        {Object.entries(group.mixTotals).map(([mixType, totalVolume]) => (
+                          <div key={mixType} className="rounded-xl border border-border/40 p-3 bg-background/50">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-foreground uppercase text-sm">{mixType}</span>
+                              <span className="font-bold text-primary">{totalVolume} L</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Weeds: {group.weedsByMix[mixType]?.join(", ") || "None"}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-1 bg-muted/50 rounded-xl p-3 border border-border/50">
-                          <span className="text-xs uppercase font-bold text-muted-foreground block mb-1">
-                            Coverage
-                          </span>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold font-display text-foreground">
-                              {Math.round(item.areaPerPack)}
-                            </span>
-                            <span className="text-xs font-bold text-muted-foreground">
-                              m²/pack
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex gap-4 text-xs font-medium text-muted-foreground justify-center">
-                        <span>Walked: {item.distanceWalked}m</span>
-                        <span>Width: {item.sprayWidth}m</span>
-                        <span>Used: {item.volumeUsed}L</span>
+                        ))}
                       </div>
                     </div>
                   ))
