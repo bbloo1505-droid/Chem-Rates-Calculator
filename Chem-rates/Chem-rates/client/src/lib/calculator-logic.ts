@@ -1,146 +1,286 @@
-export interface MixResult {
-  ingredient: string;
-  amount: number;
-  unit: string;
-  note?: string;
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
+import { MobileLayout } from "@/components/layout/mobile-layout";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  fetchWeedRows,
+  getWeedOptions,
+  calculateSprayMixFromSheet,
+  formatResultJson,
+  type SheetWeedRow,
+} from "../lib/calculator-logic";
+import { useToast } from "@/hooks/use-toast";
+
+type MixType =
+  | "glyph"
+  | "glyph-mets"
+  | "mets"
+  | "fluroxy-foliar"
+  | "fluroxy-basal"
+  | "other";
+
+function getMixType(results: { ingredient: string }[]): MixType {
+  const ingredients = results.map((r) => r.ingredient.toLowerCase());
+
+  const hasGlyph = ingredients.includes("glyphosate");
+  const hasMets = ingredients.includes("mets");
+  const hasFluroxy = ingredients.includes("fluroxy");
+  const hasBiodiesel = ingredients.includes("biodiesel");
+
+  if (hasGlyph && hasMets) return "glyph-mets";
+  if (hasGlyph) return "glyph";
+  if (hasMets) return "mets";
+  if (hasFluroxy && hasBiodiesel) return "fluroxy-basal";
+  if (hasFluroxy) return "fluroxy-foliar";
+  return "other";
 }
 
-export interface SheetWeedRow {
-  weed: string;
-  category: string;
-  treatment: string;
-  glyph_ml_L: string;
-  mets_g_L: string;
-  fluroxy_ml_L: string;
-  wetter_ml_L: string;
-  wetter_type: string;
-  dye_ml_L: string;
-  notes: string;
-}
+export default function SprayCalculator() {
+  const [weedRows, setWeedRows] = useState<SheetWeedRow[]>([]);
+  const [weedOptions, setWeedOptions] = useState<string[]>([]);
+  const [loadingWeeds, setLoadingWeeds] = useState(true);
+  const [weedError, setWeedError] = useState("");
 
-const SHEET_URL =
-  "https://opensheet.elk.sh/1kFlHv57dZdQ8aLSvyPQ5ObhNzTyuRDBMxzdxuyKWyho/Sheet1";
+  const [siteName, setSiteName] = useState<string>("");
+  const [weed, setWeed] = useState<string>("");
+  const [volume, setVolume] = useState<string>("");
+  const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
+  const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
 
-export async function fetchWeedRows(): Promise<SheetWeedRow[]> {
-  const response = await fetch(SHEET_URL);
+  const { toast } = useToast();
 
-  if (!response.ok) {
-    throw new Error("Failed to load weed data from Google Sheets");
+  useEffect(() => {
+    fetchWeedRows()
+      .then((rows) => {
+        setWeedRows(rows);
+        const options = getWeedOptions(rows);
+        setWeedOptions(options);
+        setWeed(options[0] || "");
+        setLoadingWeeds(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        setWeedError("Could not load weeds from Google Sheets.");
+        setLoadingWeeds(false);
+      });
+  }, []);
+
+  const volumeNum = parseFloat(volume);
+  const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed && siteName.trim();
+
+  const results = isValid
+    ? calculateSprayMixFromSheet(weed, volumeNum, siteType, dyeStrength, weedRows)
+    : [];
+
+  const handleSave = () => {
+    if (!isValid) return;
+
+    const mixType = getMixType(results);
+
+    const newEntry = {
+      siteName: siteName.trim(),
+      date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+      weed,
+      mixType,
+      volume: volumeNum,
+      siteType,
+      dyeStrength,
+      results: formatResultJson(results),
+      savedAt: new Date().toISOString(),
+    };
+
+    const existing = localStorage.getItem("sprayHistory");
+    const history = existing ? JSON.parse(existing) : [];
+
+    history.unshift(newEntry);
+
+    localStorage.setItem("sprayHistory", JSON.stringify(history));
+
+    toast({
+      title: "Saved to Daily Log",
+      description: "Spray entry saved on this device.",
+      duration: 3000,
+    });
+  };
+
+  if (loadingWeeds) {
+    return (
+      <MobileLayout title="Mix Calculator">
+        <div className="p-4 text-center text-muted-foreground">Loading weed database...</div>
+      </MobileLayout>
+    );
   }
 
-  const data = await response.json();
-  return data as SheetWeedRow[];
-}
-
-export function getWeedOptions(rows: SheetWeedRow[]): string[] {
-  return rows.map((row) => row.weed);
-}
-
-export function calculateSprayMixFromSheet(
-  weed: string,
-  volumeL: number,
-  siteType: "bush" | "coastal",
-  dyeStrength: "none" | "standard" | "strong",
-  rows: SheetWeedRow[]
-): MixResult[] {
-  const results: MixResult[] = [];
-
-  if (!volumeL || volumeL <= 0) return results;
-
-  const row = rows.find((r) => r.weed === weed);
-  if (!row) return results;
-
-  const glyphRate = Number(row.glyph_ml_L || 0);
-  const metsRate = Number(row.mets_g_L || 0);
-  const fluroxyRate = Number(row.fluroxy_ml_L || 0);
-  const wetterRate = Number(row.wetter_ml_L || 0);
-
-  const isBasal = row.treatment.toLowerCase() === "basal";
-
-  if (glyphRate > 0) {
-    results.push({
-      ingredient: "Glyphosate",
-      amount: glyphRate * volumeL,
-      unit: "ml",
-    });
+  if (weedError) {
+    return (
+      <MobileLayout title="Mix Calculator">
+        <div className="p-4 text-center text-red-500">{weedError}</div>
+      </MobileLayout>
+    );
   }
 
-  if (metsRate > 0) {
-    results.push({
-      ingredient: "Mets",
-      amount: metsRate * volumeL,
-      unit: "g",
-    });
-  }
+  return (
+    <MobileLayout title="Mix Calculator">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+            <MapPin className="w-4 h-4 text-primary" /> Site Name
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Cooran, Mudjimba dune site"
+            value={siteName}
+            onChange={(e) => setSiteName(e.target.value)}
+            className="w-full outdoor-input h-14"
+          />
+        </div>
 
-  if (fluroxyRate > 0) {
-    results.push({
-      ingredient: "Fluroxy",
-      amount: fluroxyRate * volumeL,
-      unit: "ml",
-    });
-  }
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+            <Leaf className="w-4 h-4 text-primary" /> Target Weed
+          </label>
+          <div className="relative">
+            <select
+              value={weed}
+              onChange={(e) => setWeed(e.target.value)}
+              className="w-full outdoor-input h-14 appearance-none pr-10"
+            >
+              <option value="" disabled>
+                Select a weed...
+              </option>
+              {weedOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M1 1.5L6 6.5L11 1.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-  if (wetterRate > 0) {
-    let wetterName = "Wetter";
-    let wetterNote: string | undefined;
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+            <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
+          </label>
+          <input
+            type="number"
+            inputMode="decimal"
+            placeholder="e.g. 15"
+            value={volume}
+            onChange={(e) => setVolume(e.target.value)}
+            className="w-full outdoor-input h-14"
+          />
+        </div>
 
-    if (row.wetter_type === "site") {
-      if (siteType === "coastal") {
-        wetterName = "Spreadwet";
-        wetterNote = "Coastal / beach sites";
-      } else {
-        wetterName = "Brushwet";
-        wetterNote = "Bush sites";
-      }
-    }
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+              <MapPin className="w-4 h-4 text-primary" /> Site Type
+            </label>
+            <div className="flex bg-muted/50 p-1 rounded-xl">
+              {(["bush", "coastal"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setSiteType(type)}
+                  className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                    siteType === type
+                      ? "bg-white shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
 
-    results.push({
-      ingredient: wetterName,
-      amount: wetterRate * volumeL,
-      unit: "ml",
-      note: wetterNote,
-    });
-  }
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+              <Droplet className="w-4 h-4 text-primary" /> Dye
+            </label>
+            <div className="flex bg-muted/50 p-1 rounded-xl">
+              {(["none", "standard", "strong"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setDyeStrength(type)}
+                  className={`flex-1 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
+                    dyeStrength === type
+                      ? "bg-white shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {type === "standard" ? "Std" : type}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-  // Dye override from the app selection, not the sheet
-  if (dyeStrength === "standard") {
-    results.push({
-      ingredient: "Dye",
-      amount: 2 * volumeL,
-      unit: "ml",
-    });
-  } else if (dyeStrength === "strong") {
-    results.push({
-      ingredient: "Dye",
-      amount: 4 * volumeL,
-      unit: "ml",
-    });
-  }
+        <AnimatePresence>
+          {isValid && results.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pt-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b-2 border-primary/20 pb-2">
+                <h2 className="text-xl font-display font-bold text-foreground">Required Mix</h2>
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
+                  {volumeNum}L Total
+                </span>
+              </div>
 
-  if (isBasal) {
-    results.push({
-      ingredient: "Biodiesel",
-      amount: volumeL,
-      unit: "L",
-      note: "Carrier fluid",
-    });
-  }
+              <div className="grid grid-cols-2 gap-3">
+                {results.map((res, i) => (
+                  <StatCard
+                    key={`${res.ingredient}-${i}`}
+                    title={res.ingredient}
+                    value={res.amount % 1 === 0 ? res.amount : res.amount.toFixed(1)}
+                    unit={res.unit}
+                    delay={i * 0.1}
+                    highlight={
+                      res.ingredient === "Glyphosate" ||
+                      res.ingredient === "Fluroxy" ||
+                      res.ingredient === "Mets"
+                    }
+                  />
+                ))}
+              </div>
 
-  return results;
-}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                onClick={handleSave}
+                className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
+              >
+                <>
+                  <CheckCircle2 className="w-6 h-6 text-secondary" />
+                  Save to Daily Log
+                </>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-export function formatResultJson(results: MixResult[]): Record<string, string> {
-  const formatted: Record<string, string> = {};
-
-  results.forEach((r) => {
-    const formattedAmount =
-      r.amount % 1 === 0 ? r.amount.toString() : r.amount.toFixed(1);
-
-    formatted[r.ingredient] = `${formattedAmount} ${r.unit}${
-      r.note ? ` (${r.note})` : ""
-    }`;
-  });
-
-  return formatted;
+        <div className="h-8" />
+      </motion.div>
+    </MobileLayout>
+  );
 }
