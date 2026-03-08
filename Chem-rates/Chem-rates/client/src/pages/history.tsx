@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Clock, Loader2, MapPin, Package, Sprout, Archive, BarChart3 } from "lucide-react";
+import { Loader2, MapPin, Package, Sprout, Archive, BarChart3 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 
 type SprayHistoryItem = {
-  siteName: string;
-  date: string; // YYYY-MM-DD
-  weed: string;
-  mixType: string;
-  volume: number;
-  siteType: "bush" | "coastal";
-  dyeStrength: "none" | "standard" | "strong";
-  results: Record<string, string>;
-  savedAt: string;
+  siteName?: string;
+  date?: string;
+  weed?: string;
+  mixType?: string;
+  volume?: number;
+  siteType?: "bush" | "coastal";
+  dyeStrength?: "none" | "standard" | "strong";
+  results?: Record<string, string>;
+  savedAt?: string;
 };
 
 type SummaryGroup = {
@@ -25,6 +25,12 @@ type SummaryGroup = {
   weedsByMix: Record<string, string[]>;
 };
 
+function safeDateLabel(dateString?: string) {
+  if (!dateString) return "Unknown date";
+  const date = new Date(dateString);
+  return isNaN(date.getTime()) ? "Unknown date" : format(date, "MMM d, yyyy");
+}
+
 export default function HistoryPage() {
   const [tab, setTab] = useState<"spray" | "summary">("spray");
   const [sprayData, setSprayData] = useState<SprayHistoryItem[]>([]);
@@ -34,7 +40,7 @@ export default function HistoryPage() {
     try {
       const storedSpray = localStorage.getItem("sprayHistory");
       const parsedSpray = storedSpray ? JSON.parse(storedSpray) : [];
-      setSprayData(parsedSpray);
+      setSprayData(Array.isArray(parsedSpray) ? parsedSpray : []);
     } catch (error) {
       console.error("Could not load spray history:", error);
       setSprayData([]);
@@ -47,13 +53,21 @@ export default function HistoryPage() {
     const grouped: Record<string, SummaryGroup> = {};
 
     for (const entry of sprayData) {
-      const key = `${entry.date}__${entry.siteName}`;
+      const siteName = entry.siteName?.trim() || "Unknown site";
+      const date =
+        entry.date ||
+        (entry.savedAt ? entry.savedAt.slice(0, 10) : "Unknown date");
+      const mixType = entry.mixType || "other";
+      const weed = entry.weed || "Unknown weed";
+      const volume = Number(entry.volume || 0);
+
+      const key = `${date}__${siteName}`;
 
       if (!grouped[key]) {
         grouped[key] = {
           key,
-          siteName: entry.siteName,
-          date: entry.date,
+          siteName,
+          date,
           entries: [],
           mixTotals: {},
           weedsByMix: {},
@@ -62,22 +76,20 @@ export default function HistoryPage() {
 
       grouped[key].entries.push(entry);
 
-      grouped[key].mixTotals[entry.mixType] =
-        (grouped[key].mixTotals[entry.mixType] || 0) + Number(entry.volume);
+      grouped[key].mixTotals[mixType] =
+        (grouped[key].mixTotals[mixType] || 0) + volume;
 
-      if (!grouped[key].weedsByMix[entry.mixType]) {
-        grouped[key].weedsByMix[entry.mixType] = [];
+      if (!grouped[key].weedsByMix[mixType]) {
+        grouped[key].weedsByMix[mixType] = [];
       }
 
-      if (!grouped[key].weedsByMix[entry.mixType].includes(entry.weed)) {
-        grouped[key].weedsByMix[entry.mixType].push(entry.weed);
+      if (!grouped[key].weedsByMix[mixType].includes(weed)) {
+        grouped[key].weedsByMix[mixType].push(weed);
       }
     }
 
     return Object.values(grouped).sort((a, b) => {
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
-      return a.siteName.localeCompare(b.siteName);
+      return `${b.date}`.localeCompare(`${a.date}`);
     });
   }, [sprayData]);
 
@@ -126,27 +138,27 @@ export default function HistoryPage() {
                 ) : (
                   sprayData.map((item, index) => (
                     <div
-                      key={`${item.savedAt}-${index}`}
+                      key={`${item.savedAt || "unknown"}-${index}`}
                       className="tactile-card p-5 rounded-2xl relative overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-2 h-full bg-primary/20" />
                       <div className="flex justify-between items-start mb-3 border-b border-border/50 pb-3">
                         <div>
                           <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                            <Sprout className="w-4 h-4 text-primary" /> {item.weed}
+                            <Sprout className="w-4 h-4 text-primary" /> {item.weed || "Unknown weed"}
                           </h3>
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" /> {item.siteName}
+                              <MapPin className="w-3 h-3" /> {item.siteName || "Unknown site"}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Package className="w-3 h-3" /> {item.volume}L
+                              <Package className="w-3 h-3" /> {item.volume || 0}L
                             </span>
-                            <span>{item.mixType}</span>
+                            <span>{item.mixType || "other"}</span>
                           </div>
                         </div>
                         <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
-                          {item.savedAt ? format(new Date(item.savedAt), "MMM d") : "Unknown"}
+                          {safeDateLabel(item.savedAt)}
                         </span>
                       </div>
 
@@ -193,7 +205,7 @@ export default function HistoryPage() {
                             {group.siteName}
                           </h3>
                           <div className="text-sm text-muted-foreground mt-1">
-                            {format(new Date(group.date), "MMM d, yyyy")}
+                            {safeDateLabel(group.date)}
                           </div>
                         </div>
                         <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
@@ -205,8 +217,12 @@ export default function HistoryPage() {
                         {Object.entries(group.mixTotals).map(([mixType, totalVolume]) => (
                           <div key={mixType} className="rounded-xl border border-border/40 p-3 bg-background/50">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-foreground uppercase text-sm">{mixType}</span>
-                              <span className="font-bold text-primary">{totalVolume} L</span>
+                              <span className="font-bold text-foreground uppercase text-sm">
+                                {mixType}
+                              </span>
+                              <span className="font-bold text-primary">
+                                {totalVolume} L
+                              </span>
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Weeds: {group.weedsByMix[mixType]?.join(", ") || "None"}
