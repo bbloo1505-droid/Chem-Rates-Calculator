@@ -12,12 +12,37 @@ import {
 } from "../lib/calculator-logic";
 import { useToast } from "@/hooks/use-toast";
 
+type MixType =
+  | "glyph"
+  | "glyph-mets"
+  | "mets"
+  | "fluroxy-foliar"
+  | "fluroxy-basal"
+  | "other";
+
+function getMixType(results: { ingredient: string }[]): MixType {
+  const ingredients = results.map((r) => r.ingredient.toLowerCase());
+
+  const hasGlyph = ingredients.includes("glyphosate");
+  const hasMets = ingredients.includes("mets");
+  const hasFluroxy = ingredients.includes("fluroxy");
+  const hasBiodiesel = ingredients.includes("biodiesel");
+
+  if (hasGlyph && hasMets) return "glyph-mets";
+  if (hasGlyph) return "glyph";
+  if (hasMets) return "mets";
+  if (hasFluroxy && hasBiodiesel) return "fluroxy-basal";
+  if (hasFluroxy) return "fluroxy-foliar";
+  return "other";
+}
+
 export default function SprayCalculator() {
   const [weedRows, setWeedRows] = useState<SheetWeedRow[]>([]);
   const [weedOptions, setWeedOptions] = useState<string[]>([]);
   const [loadingWeeds, setLoadingWeeds] = useState(true);
   const [weedError, setWeedError] = useState("");
 
+  const [siteName, setSiteName] = useState<string>("");
   const [weed, setWeed] = useState<string>("");
   const [volume, setVolume] = useState<string>("");
   const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
@@ -42,7 +67,7 @@ export default function SprayCalculator() {
   }, []);
 
   const volumeNum = parseFloat(volume);
-  const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed;
+  const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed && siteName.trim();
 
   const results = isValid
     ? calculateSprayMixFromSheet(weed, volumeNum, siteType, dyeStrength, weedRows)
@@ -51,8 +76,13 @@ export default function SprayCalculator() {
   const handleSave = () => {
     if (!isValid) return;
 
+    const mixType = getMixType(results);
+
     const newEntry = {
+      siteName: siteName.trim(),
+      date: new Date().toISOString().slice(0, 10),
       weed,
+      mixType,
       volume: volumeNum,
       siteType,
       dyeStrength,
@@ -68,8 +98,8 @@ export default function SprayCalculator() {
     localStorage.setItem("sprayHistory", JSON.stringify(history));
 
     toast({
-      title: "Saved to History",
-      description: "Mix calculation saved on this device.",
+      title: "Saved to Daily Log",
+      description: "Spray entry saved on this device.",
       duration: 3000,
     });
   };
@@ -97,6 +127,19 @@ export default function SprayCalculator() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+            <MapPin className="w-4 h-4 text-primary" /> Site Name
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Cooran, Mudjimba dune site"
+            value={siteName}
+            onChange={(e) => setSiteName(e.target.value)}
+            className="w-full outdoor-input h-14"
+          />
+        </div>
+
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <Leaf className="w-4 h-4 text-primary" /> Target Weed
@@ -225,12 +268,11 @@ export default function SprayCalculator() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
                 onClick={handleSave}
-                disabled={false}
-                className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
+                className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
               >
                 <>
                   <CheckCircle2 className="w-6 h-6 text-secondary" />
-                  Save to History
+                  Save to Daily Log
                 </>
               </motion.button>
             </motion.div>
