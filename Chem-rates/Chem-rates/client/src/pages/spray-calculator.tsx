@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { StatCard } from "@/components/ui/stat-card";
-import { useCreateSprayCalculation } from "@/hooks/use-spray-calculations";
 import {
   fetchWeedRows,
   getWeedOptions,
@@ -25,7 +24,6 @@ export default function SprayCalculator() {
   const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
 
   const { toast } = useToast();
-  const createMutation = useCreateSprayCalculation();
 
   useEffect(() => {
     fetchWeedRows()
@@ -53,24 +51,27 @@ export default function SprayCalculator() {
   const handleSave = () => {
     if (!isValid) return;
 
-    createMutation.mutate(
-      {
-        weed,
-        volume: volumeNum,
-        siteType,
-        dyeStrength,
-        results: formatResultJson(results),
-      },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Saved to History",
-            description: "Mix calculation successfully recorded.",
-            duration: 3000,
-          });
-        },
-      }
-    );
+    const newEntry = {
+      weed,
+      volume: volumeNum,
+      siteType,
+      dyeStrength,
+      results: formatResultJson(results),
+      savedAt: new Date().toISOString(),
+    };
+
+    const existing = localStorage.getItem("sprayHistory");
+    const history = existing ? JSON.parse(existing) : [];
+
+    history.unshift(newEntry);
+
+    localStorage.setItem("sprayHistory", JSON.stringify(history));
+
+    toast({
+      title: "Saved to History",
+      description: "Mix calculation saved on this device.",
+      duration: 3000,
+    });
   };
 
   if (loadingWeeds) {
@@ -224,17 +225,13 @@ export default function SprayCalculator() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
                 onClick={handleSave}
-                disabled={createMutation.isPending}
+                disabled={false}
                 className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none"
               >
-                {createMutation.isPending ? (
-                  "Saving..."
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-6 h-6 text-secondary" />
-                    Save to History
-                  </>
-                )}
+                <>
+                  <CheckCircle2 className="w-6 h-6 text-secondary" />
+                  Save to History
+                </>
               </motion.button>
             </motion.div>
           )}
