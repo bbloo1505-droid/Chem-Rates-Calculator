@@ -92,7 +92,7 @@ export default function SprayCalculator() {
 
     const newEntry = {
       siteName: siteName.trim(),
-      date: new Date().toISOString().slice(0, 10),
+     date: new Date().toLocaleDateString("en-CA"),
       weed,
       weedCondition: showWeedCondition ? weedCondition : "normal",
       mixType,
