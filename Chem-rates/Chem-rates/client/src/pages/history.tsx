@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import {
@@ -11,8 +12,13 @@ import {
   Trash2,
   CalendarDays,
   FlaskConical,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Clock3,
 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
+import { useToast } from "@/hooks/use-toast";
 
 type SprayHistoryItem = {
   siteName?: string;
@@ -51,6 +57,17 @@ type DailySummary = {
   mixBreakdown: MixBreakdown[];
 };
 
+type SubmissionStatus = "not-submitted" | "submitted" | "failed";
+
+type DailySubmissionRecord = {
+  status: SubmissionStatus;
+  submittedAt?: string | null;
+};
+
+type DailySubmissionMap = Record<string, DailySubmissionRecord>;
+
+const DAILY_STATUS_STORAGE_KEY = "dailySummaryStatus";
+
 function safeDateLabel(dateString?: string) {
   if (!dateString) return "Unknown date";
   const date = new Date(dateString);
@@ -88,13 +105,78 @@ function buildMixLabel(results?: Record<string, string>) {
   return ingredients.join(" + ");
 }
 
+function formatAmount(amount: number) {
+  return amount % 1 === 0 ? String(amount) : amount.toFixed(1);
+}
+
+function buildDailySubmissionPayload(summary: DailySummary) {
+  return {
+    date: summary.date,
+    entryCount: summary.entryCount,
+    totalVolumeL: summary.totalVolume,
+    sites: summary.sites,
+    weeds: summary.weeds,
+    chemicalTotals: summary.chemicalTotals,
+    mixBreakdown: summary.mixBreakdown,
+  };
+}
+
+function buildSummaryNotes(summary: DailySummary) {
+  const chemicalLines = Object.entries(summary.chemicalTotals)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([ingredient, total]) =>
+        `${ingredient}: ${formatAmount(total.amount)} ${total.unit}`
+    );
+
+  const mixLines = summary.mixBreakdown.map(
+    (mix) =>
+      `${mix.mixLabel} — ${formatAmount(mix.totalVolume)}L — Weeds: ${mix.weeds.join(
+        ", "
+      )} — Sites: ${mix.sites.join(", ")}`
+  );
+
+  return [
+    `Date: ${safeDateLabel(summary.date)}`,
+    `Entries: ${summary.entryCount}`,
+    `Sites: ${summary.sites.join(", ")}`,
+    `Weeds: ${summary.weeds.join(", ")}`,
+    `Total Volume: ${formatAmount(summary.totalVolume)} L`,
+    "",
+    "Chemical Totals:",
+    ...chemicalLines,
+    "",
+    "Mixes Used:",
+    ...mixLines,
+  ].join("\n");
+}
+
+function loadDailySubmissionStatus(): DailySubmissionMap {
+  try {
+    const raw = localStorage.getItem(DAILY_STATUS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDailySubmissionStatus(map: DailySubmissionMap) {
+  localStorage.setItem(DAILY_STATUS_STORAGE_KEY, JSON.stringify(map));
+}
+
 export default function HistoryPage() {
   const [tab, setTab] = useState<"spray" | "summary">("spray");
   const [sprayData, setSprayData] = useState<SprayHistoryItem[]>([]);
   const [sprayLoading, setSprayLoading] = useState(true);
+  const [submissionStatus, setSubmissionStatus] = useState<DailySubmissionMap>({});
+  const [submittingDate, setSubmittingDate] = useState<string | null>(null);
+
+  const { toast } = useToast();
 
   useEffect(() => {
     loadSprayHistory();
+    setSubmissionStatus(loadDailySubmissionStatus());
   }, []);
 
   const loadSprayHistory = () => {
@@ -107,6 +189,57 @@ export default function HistoryPage() {
       setSprayData([]);
     } finally {
       setSprayLoading(false);
+    }
+  };
+
+  const updateSubmissionStatus = (date: string, record: DailySubmissionRecord) => {
+    setSubmissionStatus((prev) => {
+      const next = {
+        ...prev,
+        [date]: record,
+      };
+      saveDailySubmissionStatus(next);
+      return next;
+    });
+  };
+
+  const handleFakeSubmit = async (summary: DailySummary) => {
+    setSubmittingDate(summary.date);
+
+    try {
+      const payload = buildDailySubmissionPayload(summary);
+      const notes = buildSummaryNotes(summary);
+
+      console.log("Zoho submission payload preview:", payload);
+      console.log("Zoho summary notes preview:", notes);
+
+      await new Promise((resolve) => setTimeout(resolve, 700));
+
+      updateSubmissionStatus(summary.date, {
+        status: "submitted",
+        submittedAt: new Date().toISOString(),
+      });
+
+      toast({
+        title: "Submit ready",
+        description: "Daily summary payload prepared. Real Zoho submit can be connected tomorrow.",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Fake submit failed:", error);
+
+      updateSubmissionStatus(summary.date, {
+        status: "failed",
+        submittedAt: null,
+      });
+
+      toast({
+        title: "Submit failed",
+        description: "Could not prepare this daily summary.",
+        duration: 3000,
+      });
+    } finally {
+      setSubmittingDate(null);
     }
   };
 
@@ -346,138 +479,156 @@ export default function HistoryPage() {
                 ) : dailySummaries.length === 0 ? (
                   <EmptyState message="No daily summaries yet." />
                 ) : (
-                  dailySummaries.map((summary) => (
-                    <div key={summary.date} className="tactile-card p-5 rounded-2xl space-y-4">
-                      <div className="flex justify-between items-start border-b border-border/50 pb-3">
-                        <div>
-                          <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                            <CalendarDays className="w-4 h-4 text-primary" />
-                            {safeDateLabel(summary.date)}
-                          </h3>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {summary.entryCount} entries across {summary.sites.length} site
-                            {summary.sites.length === 1 ? "" : "s"}
+                  dailySummaries.map((summary) => {
+                    const statusRecord = submissionStatus[summary.date] || {
+                      status: "not-submitted" as SubmissionStatus,
+                      submittedAt: null,
+                    };
+
+                    return (
+                      <div key={summary.date} className="tactile-card p-5 rounded-2xl space-y-4">
+                        <div className="flex justify-between items-start border-b border-border/50 pb-3 gap-3">
+                          <div>
+                            <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                              <CalendarDays className="w-4 h-4 text-primary" />
+                              {safeDateLabel(summary.date)}
+                            </h3>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {summary.entryCount} entries across {summary.sites.length} site
+                              {summary.sites.length === 1 ? "" : "s"}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                              {formatAmount(summary.totalVolume)}L total
+                            </span>
+                            <StatusBadge
+                              status={statusRecord.status}
+                              submittedAt={statusRecord.submittedAt}
+                            />
                           </div>
                         </div>
 
-                        <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-                          {summary.totalVolume % 1 === 0
-                            ? summary.totalVolume
-                            : summary.totalVolume.toFixed(1)}
-                          L total
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        <SummaryStat
-                          label="Entries"
-                          value={String(summary.entryCount)}
-                          icon={<Archive className="w-4 h-4 text-primary" />}
-                        />
-                        <SummaryStat
-                          label="Sites"
-                          value={String(summary.sites.length)}
-                          icon={<MapPin className="w-4 h-4 text-primary" />}
-                        />
-                        <SummaryStat
-                          label="Volume"
-                          value={`${
-                            summary.totalVolume % 1 === 0
-                              ? summary.totalVolume
-                              : summary.totalVolume.toFixed(1)
-                          }L`}
-                          icon={<Package className="w-4 h-4 text-primary" />}
-                        />
-                      </div>
-
-                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                        <div className="flex items-center gap-2 mb-3">
-                          <FlaskConical className="w-4 h-4 text-primary" />
-                          <h4 className="font-bold text-foreground">Chemical Totals</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <SummaryStat
+                            label="Entries"
+                            value={String(summary.entryCount)}
+                            icon={<Archive className="w-4 h-4 text-primary" />}
+                          />
+                          <SummaryStat
+                            label="Sites"
+                            value={String(summary.sites.length)}
+                            icon={<MapPin className="w-4 h-4 text-primary" />}
+                          />
+                          <SummaryStat
+                            label="Volume"
+                            value={`${formatAmount(summary.totalVolume)}L`}
+                            icon={<Package className="w-4 h-4 text-primary" />}
+                          />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          {Object.entries(summary.chemicalTotals)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([ingredient, total]) => (
-                              <div
-                                key={ingredient}
-                                className="rounded-lg border border-border/30 p-3 bg-white/60"
-                              >
-                                <div className="text-[10px] uppercase font-bold text-muted-foreground">
-                                  {ingredient}
+                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                          <div className="flex items-center gap-2 mb-3">
+                            <FlaskConical className="w-4 h-4 text-primary" />
+                            <h4 className="font-bold text-foreground">Chemical Totals</h4>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(summary.chemicalTotals)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([ingredient, total]) => (
+                                <div
+                                  key={ingredient}
+                                  className="rounded-lg border border-border/30 p-3 bg-white/60"
+                                >
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">
+                                    {ingredient}
+                                  </div>
+                                  <div className="font-bold text-foreground">
+                                    {formatAmount(total.amount)} {total.unit}
+                                  </div>
                                 </div>
-                                <div className="font-bold text-foreground">
-                                  {total.amount % 1 === 0
-                                    ? total.amount
-                                    : total.amount.toFixed(1)}{" "}
-                                  {total.unit}
+                              ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                          <h4 className="font-bold text-foreground mb-3">Sites Worked</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {summary.sites.map((site) => (
+                              <Tag key={site} label={site} />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                          <h4 className="font-bold text-foreground mb-3">Weeds Treated</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {summary.weeds.map((weed) => (
+                              <Tag key={weed} label={weed} />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                          <div className="flex items-center gap-2 mb-3">
+                            <BarChart3 className="w-4 h-4 text-primary" />
+                            <h4 className="font-bold text-foreground">Mixes Used</h4>
+                          </div>
+
+                          <div className="space-y-3">
+                            {summary.mixBreakdown.map((mix) => (
+                              <div
+                                key={mix.mixLabel}
+                                className="rounded-xl border border-border/30 p-3 bg-white/60"
+                              >
+                                <div className="flex items-center justify-between gap-3 mb-2">
+                                  <div className="font-bold text-foreground text-sm">
+                                    {mix.mixLabel}
+                                  </div>
+                                  <div className="text-sm font-bold text-primary">
+                                    {formatAmount(mix.totalVolume)}L
+                                  </div>
+                                </div>
+
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Weeds:</span>{" "}
+                                  {mix.weeds.join(", ")}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Sites:</span>{" "}
+                                  {mix.sites.join(", ")}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Entries:</span>{" "}
+                                  {mix.entries}
                                 </div>
                               </div>
                             ))}
+                          </div>
                         </div>
+
+                        <button
+                          onClick={() => handleFakeSubmit(summary)}
+                          disabled={submittingDate === summary.date}
+                          className="w-full mt-2 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          {submittingDate === summary.date ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Preparing Submit...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-5 h-5" />
+                              Submit to Zoho
+                            </>
+                          )}
+                        </button>
                       </div>
-
-                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                        <h4 className="font-bold text-foreground mb-3">Sites Worked</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {summary.sites.map((site) => (
-                            <Tag key={site} label={site} />
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                        <h4 className="font-bold text-foreground mb-3">Weeds Treated</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {summary.weeds.map((weed) => (
-                            <Tag key={weed} label={weed} />
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                        <div className="flex items-center gap-2 mb-3">
-                          <BarChart3 className="w-4 h-4 text-primary" />
-                          <h4 className="font-bold text-foreground">Mixes Used</h4>
-                        </div>
-
-                        <div className="space-y-3">
-                          {summary.mixBreakdown.map((mix) => (
-                            <div
-                              key={mix.mixLabel}
-                              className="rounded-xl border border-border/30 p-3 bg-white/60"
-                            >
-                              <div className="flex items-center justify-between gap-3 mb-2">
-                                <div className="font-bold text-foreground text-sm">
-                                  {mix.mixLabel}
-                                </div>
-                                <div className="text-sm font-bold text-primary">
-                                  {mix.totalVolume % 1 === 0
-                                    ? mix.totalVolume
-                                    : mix.totalVolume.toFixed(1)}
-                                  L
-                                </div>
-                              </div>
-
-                              <div className="text-sm text-muted-foreground">
-                                <span className="font-semibold text-foreground">Weeds:</span>{" "}
-                                {mix.weeds.join(", ")}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                <span className="font-semibold text-foreground">Sites:</span>{" "}
-                                {mix.sites.join(", ")}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                <span className="font-semibold text-foreground">Entries:</span>{" "}
-                                {mix.entries}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </motion.div>
             )}
@@ -495,7 +646,7 @@ function SummaryStat({
 }: {
   label: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-border/40 p-3 bg-background/50">
@@ -511,6 +662,39 @@ function Tag({ label }: { label: string }) {
     <span className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
       {label}
     </span>
+  );
+}
+
+function StatusBadge({
+  status,
+  submittedAt,
+}: {
+  status: SubmissionStatus;
+  submittedAt?: string | null;
+}) {
+  if (status === "submitted") {
+    return (
+      <div className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 px-2.5 py-1.5 rounded-xl">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        Submitted
+      </div>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <div className="flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-50 px-2.5 py-1.5 rounded-xl">
+        <AlertCircle className="w-3.5 h-3.5" />
+        Failed
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-xl">
+      <Clock3 className="w-3.5 h-3.5" />
+      Not submitted
+    </div>
   );
 }
 
