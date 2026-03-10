@@ -87,8 +87,43 @@ export default function SprayCalculator() {
       )
     : [];
 
-  const handleSave = () => {
-    if (!isValid) return;
+ const handleSave = async () => {
+  if (!isValid) return;
+
+  const mixType = getMixType(results);
+
+  const entry = {
+    user_id: "worker1",
+    site_name: siteName.trim(),
+    date: new Date().toLocaleDateString("en-CA"),
+    weed,
+    weed_condition: showConditionSelector ? weedCondition : "normal",
+    mix_type: mixType,
+    volume: volumeNum,
+    site_type: siteType,
+    dye_strength: dyeStrength,
+    results: formatResultJson(results),
+    saved_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from("spray_entries").insert(entry);
+
+  if (error) {
+    console.error("Supabase save failed:", error);
+    toast({
+      title: "Save failed",
+      description: "Could not save entry to cloud.",
+      duration: 3000,
+    });
+    return;
+  }
+
+  toast({
+    title: "Saved to Cloud",
+    description: "Spray entry saved and synced.",
+    duration: 3000,
+  });
+};
 
     const mixType = getMixType(results);
 
