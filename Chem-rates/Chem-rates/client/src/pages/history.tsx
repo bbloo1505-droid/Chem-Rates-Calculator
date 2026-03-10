@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Loader2, MapPin, Package, Sprout, Archive, BarChart3, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  Package,
+  Sprout,
+  Archive,
+  BarChart3,
+  Trash2,
+  CalendarDays,
+  FlaskConical,
+} from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 
 type SprayHistoryItem = {
   siteName?: string;
   date?: string;
   weed?: string;
+  weedCondition?: "normal" | "seeding";
   mixType?: string;
   volume?: number;
   siteType?: "bush" | "coastal";
@@ -16,19 +27,65 @@ type SprayHistoryItem = {
   savedAt?: string;
 };
 
-type SummaryGroup = {
-  key: string;
-  siteName: string;
+type ChemicalTotal = {
+  amount: number;
+  unit: string;
+};
+
+type MixBreakdown = {
+  mixLabel: string;
+  weeds: string[];
+  sites: string[];
+  entries: number;
+  totalVolume: number;
+};
+
+type DailySummary = {
   date: string;
   entries: SprayHistoryItem[];
-  mixTotals: Record<string, number>;
-  weedsByMix: Record<string, string[]>;
+  entryCount: number;
+  totalVolume: number;
+  sites: string[];
+  weeds: string[];
+  chemicalTotals: Record<string, ChemicalTotal>;
+  mixBreakdown: MixBreakdown[];
 };
 
 function safeDateLabel(dateString?: string) {
   if (!dateString) return "Unknown date";
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? "Unknown date" : format(date, "MMM d, yyyy");
+}
+
+function getEntryDate(entry: SprayHistoryItem) {
+  return entry.date || (entry.savedAt ? entry.savedAt.slice(0, 10) : "Unknown date");
+}
+
+function parseAmount(value: string): { amount: number; unit: string } | null {
+  const clean = String(value).trim();
+  const match = clean.match(/^([\d.]+)\s*([a-zA-Z]+)\b/);
+  if (!match) return null;
+
+  return {
+    amount: Number(match[1]),
+    unit: match[2],
+  };
+}
+
+function buildMixLabel(results?: Record<string, string>) {
+  if (!results) return "Unknown mix";
+
+  const hiddenIngredients = new Set(["Dye"]);
+  const ingredients = Object.keys(results)
+    .filter((name) => !hiddenIngredients.has(name))
+    .sort((a, b) => a.localeCompare(b));
+
+  if (ingredients.length === 0) {
+    const allIngredients = Object.keys(results).sort((a, b) => a.localeCompare(b));
+    return allIngredients.join(" + ") || "Unknown mix";
+  }
+
+  return ingredients.join(" + ");
 }
 
 export default function HistoryPage() {
@@ -73,48 +130,91 @@ export default function HistoryPage() {
     setSprayData([]);
   };
 
-  const summaries = useMemo<SummaryGroup[]>(() => {
-    const grouped: Record<string, SummaryGroup> = {};
+  const dailySummaries = useMemo<DailySummary[]>(() => {
+    const grouped: Record<string, DailySummary> = {};
 
     for (const entry of sprayData) {
+      const date = getEntryDate(entry);
       const siteName = entry.siteName?.trim() || "Unknown site";
-      const date =
-        entry.date ||
-        (entry.savedAt ? entry.savedAt.slice(0, 10) : "Unknown date");
-      const mixType = entry.mixType || "other";
-      const weed = entry.weed || "Unknown weed";
+      const weedName = entry.weed?.trim() || "Unknown weed";
       const volume = Number(entry.volume || 0);
+      const mixLabel = buildMixLabel(entry.results);
 
-      const key = `${date}__${siteName}`;
-
-      if (!grouped[key]) {
-        grouped[key] = {
-          key,
-          siteName,
+      if (!grouped[date]) {
+        grouped[date] = {
           date,
           entries: [],
-          mixTotals: {},
-          weedsByMix: {},
+          entryCount: 0,
+          totalVolume: 0,
+          sites: [],
+          weeds: [],
+          chemicalTotals: {},
+          mixBreakdown: [],
         };
       }
 
-      grouped[key].entries.push(entry);
+      const summary = grouped[date];
+      summary.entries.push(entry);
+      summary.entryCount += 1;
+      summary.totalVolume += volume;
 
-      grouped[key].mixTotals[mixType] =
-        (grouped[key].mixTotals[mixType] || 0) + volume;
-
-      if (!grouped[key].weedsByMix[mixType]) {
-        grouped[key].weedsByMix[mixType] = [];
+      if (!summary.sites.includes(siteName)) {
+        summary.sites.push(siteName);
       }
 
-      if (!grouped[key].weedsByMix[mixType].includes(weed)) {
-        grouped[key].weedsByMix[mixType].push(weed);
+      if (!summary.weeds.includes(weedName)) {
+        summary.weeds.push(weedName);
+      }
+
+      for (const [ingredient, value] of Object.entries(entry.results || {})) {
+        const parsed = parseAmount(value);
+        if (!parsed) continue;
+
+        if (!summary.chemicalTotals[ingredient]) {
+          summary.chemicalTotals[ingredient] = {
+            amount: 0,
+            unit: parsed.unit,
+          };
+        }
+
+        summary.chemicalTotals[ingredient].amount += parsed.amount;
+      }
+
+      let existingMix = summary.mixBreakdown.find((mix) => mix.mixLabel === mixLabel);
+
+      if (!existingMix) {
+        existingMix = {
+          mixLabel,
+          weeds: [],
+          sites: [],
+          entries: 0,
+          totalVolume: 0,
+        };
+        summary.mixBreakdown.push(existingMix);
+      }
+
+      existingMix.entries += 1;
+      existingMix.totalVolume += volume;
+
+      if (!existingMix.weeds.includes(weedName)) {
+        existingMix.weeds.push(weedName);
+      }
+
+      if (!existingMix.sites.includes(siteName)) {
+        existingMix.sites.push(siteName);
       }
     }
 
-    return Object.values(grouped).sort((a, b) => {
-      return `${b.date}`.localeCompare(`${a.date}`);
-    });
+    return Object.values(grouped)
+      .map((summary) => ({
+        ...summary,
+        sites: [...summary.sites].sort((a, b) => a.localeCompare(b)),
+        weeds: [...summary.weeds].sort((a, b) => a.localeCompare(b)),
+        mixBreakdown: [...summary.mixBreakdown].sort((a, b) =>
+          a.mixLabel.localeCompare(b.mixLabel)
+        ),
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [sprayData]);
 
   return (
@@ -192,12 +292,15 @@ export default function HistoryPage() {
                               <Package className="w-3 h-3" /> {item.volume || 0}L
                             </span>
                             <span>{item.mixType || "other"}</span>
+                            {item.weedCondition && item.weedCondition !== "normal" && (
+                              <span>{item.weedCondition}</span>
+                            )}
                           </div>
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
                           <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
-                            {safeDateLabel(item.savedAt)}
+                            {safeDateLabel(item.savedAt || item.date)}
                           </span>
                           <button
                             onClick={() => deleteSprayEntry(item.savedAt, index)}
@@ -240,45 +343,138 @@ export default function HistoryPage() {
                   <div className="flex justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
                   </div>
-                ) : summaries.length === 0 ? (
+                ) : dailySummaries.length === 0 ? (
                   <EmptyState message="No daily summaries yet." />
                 ) : (
-                  summaries.map((group) => (
-                    <div key={group.key} className="tactile-card p-5 rounded-2xl">
-                      <div className="flex justify-between items-start mb-4 border-b border-border/50 pb-3">
+                  dailySummaries.map((summary) => (
+                    <div key={summary.date} className="tactile-card p-5 rounded-2xl space-y-4">
+                      <div className="flex justify-between items-start border-b border-border/50 pb-3">
                         <div>
                           <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                            <BarChart3 className="w-4 h-4 text-primary" />
-                            {group.siteName}
+                            <CalendarDays className="w-4 h-4 text-primary" />
+                            {safeDateLabel(summary.date)}
                           </h3>
                           <div className="text-sm text-muted-foreground mt-1">
-                            {safeDateLabel(group.date)}
+                            {summary.entryCount} entries across {summary.sites.length} site
+                            {summary.sites.length === 1 ? "" : "s"}
                           </div>
                         </div>
+
                         <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-                          {group.entries.length} entries
+                          {summary.totalVolume % 1 === 0
+                            ? summary.totalVolume
+                            : summary.totalVolume.toFixed(1)}
+                          L total
                         </span>
                       </div>
 
-                      <div className="space-y-3">
-                        {Object.entries(group.mixTotals).map(([mixType, totalVolume]) => (
-                          <div
-                            key={mixType}
-                            className="rounded-xl border border-border/40 p-3 bg-background/50"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-foreground uppercase text-sm">
-                                {mixType}
-                              </span>
-                              <span className="font-bold text-primary">
-                                {totalVolume} L
-                              </span>
+                      <div className="grid grid-cols-3 gap-3">
+                        <SummaryStat
+                          label="Entries"
+                          value={String(summary.entryCount)}
+                          icon={<Archive className="w-4 h-4 text-primary" />}
+                        />
+                        <SummaryStat
+                          label="Sites"
+                          value={String(summary.sites.length)}
+                          icon={<MapPin className="w-4 h-4 text-primary" />}
+                        />
+                        <SummaryStat
+                          label="Volume"
+                          value={`${
+                            summary.totalVolume % 1 === 0
+                              ? summary.totalVolume
+                              : summary.totalVolume.toFixed(1)
+                          }L`}
+                          icon={<Package className="w-4 h-4 text-primary" />}
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FlaskConical className="w-4 h-4 text-primary" />
+                          <h4 className="font-bold text-foreground">Chemical Totals</h4>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {Object.entries(summary.chemicalTotals)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([ingredient, total]) => (
+                              <div
+                                key={ingredient}
+                                className="rounded-lg border border-border/30 p-3 bg-white/60"
+                              >
+                                <div className="text-[10px] uppercase font-bold text-muted-foreground">
+                                  {ingredient}
+                                </div>
+                                <div className="font-bold text-foreground">
+                                  {total.amount % 1 === 0
+                                    ? total.amount
+                                    : total.amount.toFixed(1)}{" "}
+                                  {total.unit}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                        <h4 className="font-bold text-foreground mb-3">Sites Worked</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {summary.sites.map((site) => (
+                            <Tag key={site} label={site} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                        <h4 className="font-bold text-foreground mb-3">Weeds Treated</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {summary.weeds.map((weed) => (
+                            <Tag key={weed} label={weed} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <BarChart3 className="w-4 h-4 text-primary" />
+                          <h4 className="font-bold text-foreground">Mixes Used</h4>
+                        </div>
+
+                        <div className="space-y-3">
+                          {summary.mixBreakdown.map((mix) => (
+                            <div
+                              key={mix.mixLabel}
+                              className="rounded-xl border border-border/30 p-3 bg-white/60"
+                            >
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <div className="font-bold text-foreground text-sm">
+                                  {mix.mixLabel}
+                                </div>
+                                <div className="text-sm font-bold text-primary">
+                                  {mix.totalVolume % 1 === 0
+                                    ? mix.totalVolume
+                                    : mix.totalVolume.toFixed(1)}
+                                  L
+                                </div>
+                              </div>
+
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-foreground">Weeds:</span>{" "}
+                                {mix.weeds.join(", ")}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-foreground">Sites:</span>{" "}
+                                {mix.sites.join(", ")}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-foreground">Entries:</span>{" "}
+                                {mix.entries}
+                              </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              Weeds: {group.weedsByMix[mixType]?.join(", ") || "None"}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -289,6 +485,32 @@ export default function HistoryPage() {
         </div>
       </div>
     </MobileLayout>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border/40 p-3 bg-background/50">
+      <div className="flex items-center gap-2 mb-2">{icon}</div>
+      <div className="text-[10px] uppercase font-bold text-muted-foreground">{label}</div>
+      <div className="font-bold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function Tag({ label }: { label: string }) {
+  return (
+    <span className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+      {label}
+    </span>
   );
 }
 
