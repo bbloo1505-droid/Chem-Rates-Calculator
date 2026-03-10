@@ -71,7 +71,7 @@ export default function SprayCalculator() {
   }, []);
 
   const volumeNum = parseFloat(volume);
-  const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed && siteName.trim();
+  const isValid = !isNaN(volumeNum) && volumeNum > 0 && Boolean(weed) && Boolean(siteName.trim());
 
   const availableConditions = getWeedConditions(weedRows, weed);
   const showConditionSelector = availableConditions.length > 1;
@@ -87,7 +87,8 @@ export default function SprayCalculator() {
       )
     : [];
 
-  };
+  const handleSave = async () => {
+    if (!isValid) return;
 
     const mixType = getMixType(results);
 
@@ -105,13 +106,13 @@ export default function SprayCalculator() {
       saved_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("spray_entries").insert(entry);
+    const { error } = await supabase.from("spray_entries").insert([entry]);
 
     if (error) {
       console.error("Supabase save failed:", error);
       toast({
         title: "Save failed",
-        description: "Could not save entry to cloud.",
+        description: error.message || "Could not save entry to cloud.",
         duration: 3000,
       });
       return;
