@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
