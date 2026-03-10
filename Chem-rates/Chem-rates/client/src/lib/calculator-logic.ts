@@ -34,7 +34,23 @@ export async function fetchWeedRows(): Promise<SheetWeedRow[]> {
 }
 
 export function getWeedOptions(rows: SheetWeedRow[]): string[] {
-  return [...new Set(rows.map((row) => row.weed))];
+  const seen = new Set<string>();
+  const options: string[] = [];
+
+  for (const row of rows) {
+    const weedName = (row.weed || "").trim();
+
+    if (!weedName) continue;
+
+    const key = weedName.toLowerCase();
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      options.push(weedName);
+    }
+  }
+
+  return options.sort((a, b) => a.localeCompare(b));
 }
 
 export function calculateSprayMixFromSheet(
