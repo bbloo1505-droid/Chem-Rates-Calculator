@@ -7,14 +7,12 @@ import NotFound from "@/pages/not-found";
 
 // Page Imports
 import SprayCalculator from "./pages/spray-calculator";
-import Calibration from "./pages/calibration";
 import History from "./pages/history";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={SprayCalculator} />
-      <Route path="/calibrate" component={Calibration} />
       <Route path="/history" component={History} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
