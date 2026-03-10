@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { StatCard } from "@/components/ui/stat-card";
