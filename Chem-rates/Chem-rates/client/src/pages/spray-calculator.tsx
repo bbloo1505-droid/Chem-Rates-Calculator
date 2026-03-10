@@ -87,8 +87,7 @@ export default function SprayCalculator() {
       )
     : [];
 
-  const handleSave = async () => {
-    if (!isValid) return;
+  };
 
     const mixType = getMixType(results);
 
