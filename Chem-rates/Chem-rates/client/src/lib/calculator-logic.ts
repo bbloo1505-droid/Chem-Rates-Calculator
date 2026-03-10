@@ -7,6 +7,7 @@ export interface MixResult {
 
 export interface SheetWeedRow {
   weed: string;
+  condition: string;
   category: string;
   treatment: string;
   glyph_ml_L: string;
@@ -33,7 +34,8 @@ export async function fetchWeedRows(): Promise<SheetWeedRow[]> {
 }
 
 export function getWeedOptions(rows: SheetWeedRow[]): string[] {
-  return rows.map((row) => row.weed);
+  // remove duplicate weeds caused by multiple conditions
+  return [...new Set(rows.map((row) => row.weed))];
 }
 
 export function calculateSprayMixFromSheet(
@@ -42,27 +44,27 @@ export function calculateSprayMixFromSheet(
   siteType: "bush" | "coastal",
   dyeStrength: "none" | "standard" | "strong",
   rows: SheetWeedRow[],
-  weedCondition: "normal" | "seeding" // NEW
+  weedCondition: "normal" | "seeding"
 ): MixResult[] {
   const results: MixResult[] = [];
 
   if (!volumeL || volumeL <= 0) return results;
 
-  const row = rows.find((r) => r.weed === weed);
+  const row =
+    rows.find(
+      (r) =>
+        r.weed === weed &&
+        (r.condition || "normal").toLowerCase() === weedCondition
+    ) || rows.find((r) => r.weed === weed);
+
   if (!row) return results;
 
-  let glyphRate = Number(row.glyph_ml_L || 0);
-  let metsRate = Number(row.mets_g_L || 0);
+  const glyphRate = Number(row.glyph_ml_L || 0);
+  const metsRate = Number(row.mets_g_L || 0);
   const fluroxyRate = Number(row.fluroxy_ml_L || 0);
   const wetterRate = Number(row.wetter_ml_L || 0);
 
   const isBasal = row.treatment.toLowerCase() === "basal";
-
-  // NEW CONDITION LOGIC
-  // Example: if seeding we prioritise mets over glyph
-  if (weedCondition === "seeding" && metsRate > 0) {
-    glyphRate = 0;
-  }
 
   if (glyphRate > 0) {
     results.push({
