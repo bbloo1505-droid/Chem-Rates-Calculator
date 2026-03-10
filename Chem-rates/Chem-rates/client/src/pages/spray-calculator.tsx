@@ -6,6 +6,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import {
   fetchWeedRows,
   getWeedOptions,
+  getWeedConditions,
   calculateSprayMixFromSheet,
   formatResultJson,
   type SheetWeedRow,
@@ -71,8 +72,8 @@ export default function SprayCalculator() {
   const volumeNum = parseFloat(volume);
   const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed && siteName.trim();
 
-  const weedsNeedingCondition = ["Bidens pilosa"];
-  const showWeedCondition = weedsNeedingCondition.includes(weed);
+  const availableConditions = getWeedConditions(weedRows, weed);
+  const showConditionSelector = availableConditions.length > 1;
 
   const results = isValid
     ? calculateSprayMixFromSheet(
@@ -81,7 +82,7 @@ export default function SprayCalculator() {
         siteType,
         dyeStrength,
         weedRows,
-        weedCondition
+        showConditionSelector ? weedCondition : "normal"
       )
     : [];
 
@@ -92,9 +93,9 @@ export default function SprayCalculator() {
 
     const newEntry = {
       siteName: siteName.trim(),
-     date: new Date().toLocaleDateString("en-CA"),
+      date: new Date().toLocaleDateString("en-CA"),
       weed,
-      weedCondition: showWeedCondition ? weedCondition : "normal",
+      weedCondition: showConditionSelector ? weedCondition : "normal",
       mixType,
       volume: volumeNum,
       siteType,
@@ -178,27 +179,36 @@ export default function SprayCalculator() {
           </select>
         </div>
 
-        {showWeedCondition && (
+        {showConditionSelector && (
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
               <Leaf className="w-4 h-4 text-primary" /> Weed Condition
             </label>
 
             <div className="flex bg-muted/50 p-1 rounded-xl">
-              {(["normal", "seeding"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setWeedCondition(type)}
-                  className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
-                    weedCondition === type
-                      ? "bg-white shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {type === "normal" ? "Not Seeding" : "Seed Heads"}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setWeedCondition("normal")}
+                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                  weedCondition === "normal"
+                    ? "bg-white shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Not Seeding
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWeedCondition("seeding")}
+                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                  weedCondition === "seeding"
+                    ? "bg-white shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Seed Heads
+              </button>
             </div>
           </div>
         )}
