@@ -171,6 +171,7 @@ export default function HistoryPage() {
   const [sprayLoading, setSprayLoading] = useState(true);
   const [submissionStatus, setSubmissionStatus] = useState<DailySubmissionMap>({});
   const [submittingDate, setSubmittingDate] = useState<string | null>(null);
+  const [confirmSubmitDate, setConfirmSubmitDate] = useState<string | null>(null);
 
   const { toast } = useToast();
 
