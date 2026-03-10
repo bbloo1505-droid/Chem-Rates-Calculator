@@ -53,6 +53,18 @@ export function getWeedOptions(rows: SheetWeedRow[]): string[] {
   return options.sort((a, b) => a.localeCompare(b));
 }
 
+export function getWeedConditions(rows: SheetWeedRow[], weed: string): string[] {
+  const conditions = new Set<string>();
+
+  for (const row of rows) {
+    if ((row.weed || "").trim().toLowerCase() === weed.trim().toLowerCase()) {
+      conditions.add(((row.condition || "normal").trim().toLowerCase()));
+    }
+  }
+
+  return Array.from(conditions).sort();
+}
+
 export function calculateSprayMixFromSheet(
   weed: string,
   volumeL: number,
@@ -65,24 +77,26 @@ export function calculateSprayMixFromSheet(
 
   if (!volumeL || volumeL <= 0) return results;
 
+  const selectedWeed = weed.trim().toLowerCase();
+
   const row =
     rows.find(
       (r) =>
-        r.weed === weed &&
-        (r.condition || "normal").toLowerCase() === weedCondition &&
-        (r.treatment || "foliar").toLowerCase() === "foliar"
+        (r.weed || "").trim().toLowerCase() === selectedWeed &&
+        ((r.condition || "normal").trim().toLowerCase() === weedCondition) &&
+        ((r.treatment || "foliar").trim().toLowerCase() === "foliar")
     ) ||
     rows.find(
       (r) =>
-        r.weed === weed &&
-        (r.treatment || "foliar").toLowerCase() === "foliar"
+        (r.weed || "").trim().toLowerCase() === selectedWeed &&
+        ((r.treatment || "foliar").trim().toLowerCase() === "foliar")
     ) ||
     rows.find(
       (r) =>
-        r.weed === weed &&
-        (r.condition || "normal").toLowerCase() === weedCondition
+        (r.weed || "").trim().toLowerCase() === selectedWeed &&
+        ((r.condition || "normal").trim().toLowerCase() === weedCondition)
     ) ||
-    rows.find((r) => r.weed === weed);
+    rows.find((r) => (r.weed || "").trim().toLowerCase() === selectedWeed);
 
   if (!row) return results;
 
@@ -92,7 +106,7 @@ export function calculateSprayMixFromSheet(
   const wetterRate = Number(row.wetter_ml_L || 0);
   const dyeRate = Number(row.dye_ml_L || 0);
 
-  const isBasal = (row.treatment || "").toLowerCase() === "basal";
+  const isBasal = (row.treatment || "").trim().toLowerCase() === "basal";
 
   if (glyphRate > 0) {
     results.push({
@@ -122,7 +136,7 @@ export function calculateSprayMixFromSheet(
     let wetterName = "Wetter";
     let wetterNote: string | undefined;
 
-    if ((row.wetter_type || "").toLowerCase() === "site") {
+    if ((row.wetter_type || "").trim().toLowerCase() === "site") {
       if (siteType === "coastal") {
         wetterName = "Spreadwet";
         wetterNote = "Coastal / beach sites";
