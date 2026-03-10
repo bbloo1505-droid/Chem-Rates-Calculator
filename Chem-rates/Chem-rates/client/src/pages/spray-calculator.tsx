@@ -49,8 +49,6 @@ export default function SprayCalculator() {
   const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
   const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
   const [weedCondition, setWeedCondition] = useState<"normal" | "seeding">("normal");
-  const [treatmentMethod, setTreatmentMethod] =
-    useState<"foliar" | "basal" | "cutstump">("foliar");
 
   const { toast } = useToast();
 
@@ -73,6 +71,9 @@ export default function SprayCalculator() {
   const volumeNum = parseFloat(volume);
   const isValid = !isNaN(volumeNum) && volumeNum > 0 && weed && siteName.trim();
 
+  const weedsNeedingCondition = ["Bidens pilosa"];
+  const showWeedCondition = weedsNeedingCondition.includes(weed);
+
   const results = isValid
     ? calculateSprayMixFromSheet(
         weed,
@@ -80,8 +81,7 @@ export default function SprayCalculator() {
         siteType,
         dyeStrength,
         weedRows,
-        weedCondition,
-        treatmentMethod
+        weedCondition
       )
     : [];
 
@@ -94,8 +94,7 @@ export default function SprayCalculator() {
       siteName: siteName.trim(),
       date: new Date().toISOString().slice(0, 10),
       weed,
-      weedCondition,
-      treatmentMethod,
+      weedCondition: showWeedCondition ? weedCondition : "normal",
       mixType,
       volume: volumeNum,
       siteType,
@@ -143,7 +142,6 @@ export default function SprayCalculator() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        {/* SITE NAME */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <MapPin className="w-4 h-4 text-primary" /> Site Name
@@ -157,14 +155,16 @@ export default function SprayCalculator() {
           />
         </div>
 
-        {/* WEED */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <Leaf className="w-4 h-4 text-primary" /> Target Weed
           </label>
           <select
             value={weed}
-            onChange={(e) => setWeed(e.target.value)}
+            onChange={(e) => {
+              setWeed(e.target.value);
+              setWeedCondition("normal");
+            }}
             className="w-full outdoor-input h-14"
           >
             <option value="" disabled>
@@ -178,55 +178,31 @@ export default function SprayCalculator() {
           </select>
         </div>
 
-        {/* WEED CONDITION */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <Leaf className="w-4 h-4 text-primary" /> Weed Condition
-          </label>
+        {showWeedCondition && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+              <Leaf className="w-4 h-4 text-primary" /> Weed Condition
+            </label>
 
-          <div className="flex bg-muted/50 p-1 rounded-xl">
-            {(["normal", "seeding"] as const).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setWeedCondition(type)}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
-                  weedCondition === type
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {type === "normal" ? "Not Seeding" : "Seed Heads"}
-              </button>
-            ))}
+            <div className="flex bg-muted/50 p-1 rounded-xl">
+              {(["normal", "seeding"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setWeedCondition(type)}
+                  className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                    weedCondition === type
+                      ? "bg-white shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {type === "normal" ? "Not Seeding" : "Seed Heads"}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* TREATMENT METHOD */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <Droplet className="w-4 h-4 text-primary" /> Treatment Method
-          </label>
-
-          <div className="flex bg-muted/50 p-1 rounded-xl">
-            {(["foliar", "basal", "cutstump"] as const).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => setTreatmentMethod(method)}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                  treatmentMethod === method
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {method === "cutstump" ? "Cut Stump" : method}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* VOLUME */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
             <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
@@ -241,7 +217,6 @@ export default function SprayCalculator() {
           />
         </div>
 
-        {/* SITE + DYE */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
@@ -288,7 +263,6 @@ export default function SprayCalculator() {
           </div>
         </div>
 
-        {/* RESULTS */}
         <AnimatePresence>
           {isValid && results.length > 0 && (
             <motion.div
