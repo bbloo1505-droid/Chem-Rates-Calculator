@@ -43,8 +43,7 @@ export function calculateSprayMixFromSheet(
   siteType: "bush" | "coastal",
   dyeStrength: "none" | "standard" | "strong",
   rows: SheetWeedRow[],
-  weedCondition: "normal" | "seeding",
-  treatmentMethod: string
+  weedCondition: "normal" | "seeding"
 ): MixResult[] {
   const results: MixResult[] = [];
 
@@ -55,12 +54,17 @@ export function calculateSprayMixFromSheet(
       (r) =>
         r.weed === weed &&
         (r.condition || "normal").toLowerCase() === weedCondition &&
-        r.treatment.toLowerCase() === treatmentMethod
+        (r.treatment || "foliar").toLowerCase() === "foliar"
     ) ||
     rows.find(
       (r) =>
         r.weed === weed &&
-        r.treatment.toLowerCase() === treatmentMethod
+        (r.treatment || "foliar").toLowerCase() === "foliar"
+    ) ||
+    rows.find(
+      (r) =>
+        r.weed === weed &&
+        (r.condition || "normal").toLowerCase() === weedCondition
     ) ||
     rows.find((r) => r.weed === weed);
 
@@ -70,8 +74,9 @@ export function calculateSprayMixFromSheet(
   const metsRate = Number(row.mets_g_L || 0);
   const fluroxyRate = Number(row.fluroxy_ml_L || 0);
   const wetterRate = Number(row.wetter_ml_L || 0);
+  const dyeRate = Number(row.dye_ml_L || 0);
 
-  const isBasal = row.treatment.toLowerCase() === "basal";
+  const isBasal = (row.treatment || "").toLowerCase() === "basal";
 
   if (glyphRate > 0) {
     results.push({
@@ -101,7 +106,7 @@ export function calculateSprayMixFromSheet(
     let wetterName = "Wetter";
     let wetterNote: string | undefined;
 
-    if (row.wetter_type === "site") {
+    if ((row.wetter_type || "").toLowerCase() === "site") {
       if (siteType === "coastal") {
         wetterName = "Spreadwet";
         wetterNote = "Coastal / beach sites";
@@ -122,13 +127,13 @@ export function calculateSprayMixFromSheet(
   if (dyeStrength === "standard") {
     results.push({
       ingredient: "Dye",
-      amount: 2 * volumeL,
+      amount: dyeRate > 0 ? dyeRate * volumeL : 2 * volumeL,
       unit: "ml",
     });
   } else if (dyeStrength === "strong") {
     results.push({
       ingredient: "Dye",
-      amount: 4 * volumeL,
+      amount: dyeRate > 0 ? dyeRate * 2 * volumeL : 4 * volumeL,
       unit: "ml",
     });
   }
