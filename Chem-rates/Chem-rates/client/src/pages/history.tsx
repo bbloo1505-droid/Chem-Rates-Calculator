@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -20,18 +19,21 @@ import {
 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type SprayHistoryItem = {
-  siteName?: string;
+  id?: string;
+  user_id?: string;
+  site_name?: string;
   date?: string;
   weed?: string;
-  weedCondition?: "normal" | "seeding";
-  mixType?: string;
+  weed_condition?: "normal" | "seeding";
+  mix_type?: string;
   volume?: number;
-  siteType?: "bush" | "coastal";
-  dyeStrength?: "none" | "standard" | "strong";
+  site_type?: "bush" | "coastal";
+  dye_strength?: "none" | "standard" | "strong";
   results?: Record<string, string>;
-  savedAt?: string;
+  saved_at?: string;
 };
 
 type ChemicalTotal = {
@@ -76,7 +78,7 @@ function safeDateLabel(dateString?: string) {
 }
 
 function getEntryDate(entry: SprayHistoryItem) {
-  return entry.date || (entry.savedAt ? entry.savedAt.slice(0, 10) : "Unknown date");
+  return entry.date || (entry.saved_at ? entry.saved_at.slice(0, 10) : "Unknown date");
 }
 
 function parseAmount(value: string): { amount: number; unit: string } | null {
@@ -181,11 +183,22 @@ export default function HistoryPage() {
     setSubmissionStatus(loadDailySubmissionStatus());
   }, []);
 
-  const loadSprayHistory = () => {
+  const loadSprayHistory = async () => {
     try {
-      const storedSpray = localStorage.getItem("sprayHistory");
-      const parsedSpray = storedSpray ? JSON.parse(storedSpray) : [];
-      setSprayData(Array.isArray(parsedSpray) ? parsedSpray : []);
+      setSprayLoading(true);
+
+      const { data, error } = await supabase
+        .from("spray_entries")
+        .select("*")
+        .order("saved_at", { ascending: false });
+
+      if (error) {
+        console.error("Could not load spray history:", error);
+        setSprayData([]);
+        return;
+      }
+
+      setSprayData((data || []) as SprayHistoryItem[]);
     } catch (error) {
       console.error("Could not load spray history:", error);
       setSprayData([]);
@@ -224,7 +237,7 @@ export default function HistoryPage() {
 
       toast({
         title: "Submit ready",
-        description: "Daily summary payload prepared. Real Zoho submit can be connected tomorrow.",
+        description: "Daily summary payload prepared. Real Zoho submit can be connected next.",
         duration: 3000,
       });
     } catch (error) {
@@ -245,24 +258,54 @@ export default function HistoryPage() {
     }
   };
 
-  const deleteSprayEntry = (savedAt?: string, index?: number) => {
-    const existing = localStorage.getItem("sprayHistory");
-    const history = existing ? JSON.parse(existing) : [];
+  const deleteSprayEntry = async (id?: string) => {
+    if (!id) return;
 
-    const updated = history.filter((item: SprayHistoryItem, i: number) => {
-      if (savedAt) {
-        return item.savedAt !== savedAt;
-      }
-      return i !== index;
+    const { error } = await supabase.from("spray_entries").delete().eq("id", id);
+
+    if (error) {
+      console.error("Delete failed:", error);
+      toast({
+        title: "Delete failed",
+        description: error.message || "Could not delete entry.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setSprayData((prev) => prev.filter((item) => item.id !== id));
+
+    toast({
+      title: "Deleted",
+      description: "Spray entry removed.",
+      duration: 2000,
     });
-
-    localStorage.setItem("sprayHistory", JSON.stringify(updated));
-    setSprayData(updated);
   };
 
-  const clearAllSprayHistory = () => {
-    localStorage.removeItem("sprayHistory");
+  const clearAllSprayHistory = async () => {
+    const ids = sprayData.map((item) => item.id).filter(Boolean);
+
+    if (ids.length === 0) return;
+
+    const { error } = await supabase.from("spray_entries").delete().in("id", ids as string[]);
+
+    if (error) {
+      console.error("Clear all failed:", error);
+      toast({
+        title: "Clear failed",
+        description: error.message || "Could not clear entries.",
+        duration: 3000,
+      });
+      return;
+    }
+
     setSprayData([]);
+
+    toast({
+      title: "Cleared",
+      description: "All spray entries removed.",
+      duration: 2000,
+    });
   };
 
   const dailySummaries = useMemo<DailySummary[]>(() => {
@@ -270,7 +313,7 @@ export default function HistoryPage() {
 
     for (const entry of sprayData) {
       const date = getEntryDate(entry);
-      const siteName = entry.siteName?.trim() || "Unknown site";
+      const siteName = entry.site_name?.trim() || "Unknown site";
       const weedName = entry.weed?.trim() || "Unknown weed";
       const volume = Number(entry.volume || 0);
       const mixLabel = buildMixLabel(entry.results);
@@ -407,9 +450,9 @@ export default function HistoryPage() {
                 ) : sprayData.length === 0 ? (
                   <EmptyState message="No spray calculations saved yet." />
                 ) : (
-                  sprayData.map((item, index) => (
+                  sprayData.map((item) => (
                     <div
-                      key={`${item.savedAt || "unknown"}-${index}`}
+                      key={item.id || item.saved_at || `${item.weed}-${item.site_name}`}
                       className="tactile-card p-5 rounded-2xl relative overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-2 h-full bg-primary/20" />
@@ -421,24 +464,24 @@ export default function HistoryPage() {
                           </h3>
                           <div className="flex flex-wrap items-center gap-3 mt-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" /> {item.siteName || "Unknown site"}
+                              <MapPin className="w-3 h-3" /> {item.site_name || "Unknown site"}
                             </span>
                             <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" /> {item.volume || 0}L
                             </span>
-                            <span>{item.mixType || "other"}</span>
-                            {item.weedCondition && item.weedCondition !== "normal" && (
-                              <span>{item.weedCondition}</span>
+                            <span>{item.mix_type || "other"}</span>
+                            {item.weed_condition && item.weed_condition !== "normal" && (
+                              <span>{item.weed_condition}</span>
                             )}
                           </div>
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
                           <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
-                            {safeDateLabel(item.savedAt || item.date)}
+                            {safeDateLabel(item.saved_at || item.date)}
                           </span>
                           <button
-                            onClick={() => deleteSprayEntry(item.savedAt, index)}
+                            onClick={() => deleteSprayEntry(item.id)}
                             className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md"
                           >
                             <Trash2 className="w-3 h-3" />
