@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
 import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { StatCard } from "@/components/ui/stat-card";
@@ -13,6 +12,7 @@ import {
   type SheetWeedRow,
 } from "../lib/calculator-logic";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type MixType =
   | "glyph"
@@ -44,9 +44,9 @@ export default function SprayCalculator() {
   const [loadingWeeds, setLoadingWeeds] = useState(true);
   const [weedError, setWeedError] = useState("");
 
-  const [siteName, setSiteName] = useState<string>("");
-  const [weed, setWeed] = useState<string>("");
-  const [volume, setVolume] = useState<string>("");
+  const [siteName, setSiteName] = useState("");
+  const [weed, setWeed] = useState("");
+  const [volume, setVolume] = useState("");
 
   const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
   const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
@@ -87,69 +87,40 @@ export default function SprayCalculator() {
       )
     : [];
 
- const handleSave = async () => {
-  if (!isValid) return;
-
-  const mixType = getMixType(results);
-
-  const entry = {
-    user_id: "worker1",
-    site_name: siteName.trim(),
-    date: new Date().toLocaleDateString("en-CA"),
-    weed,
-    weed_condition: showConditionSelector ? weedCondition : "normal",
-    mix_type: mixType,
-    volume: volumeNum,
-    site_type: siteType,
-    dye_strength: dyeStrength,
-    results: formatResultJson(results),
-    saved_at: new Date().toISOString(),
-  };
-
-  const { error } = await supabase.from("spray_entries").insert(entry);
-
-  if (error) {
-    console.error("Supabase save failed:", error);
-    toast({
-      title: "Save failed",
-      description: "Could not save entry to cloud.",
-      duration: 3000,
-    });
-    return;
-  }
-
-  toast({
-    title: "Saved to Cloud",
-    description: "Spray entry saved and synced.",
-    duration: 3000,
-  });
-};
+  const handleSave = async () => {
+    if (!isValid) return;
 
     const mixType = getMixType(results);
 
-    const newEntry = {
-      siteName: siteName.trim(),
+    const entry = {
+      user_id: "worker1",
+      site_name: siteName.trim(),
       date: new Date().toLocaleDateString("en-CA"),
       weed,
-      weedCondition: showConditionSelector ? weedCondition : "normal",
-      mixType,
+      weed_condition: showConditionSelector ? weedCondition : "normal",
+      mix_type: mixType,
       volume: volumeNum,
-      siteType,
-      dyeStrength,
+      site_type: siteType,
+      dye_strength: dyeStrength,
       results: formatResultJson(results),
-      savedAt: new Date().toISOString(),
+      saved_at: new Date().toISOString(),
     };
 
-    const existing = localStorage.getItem("sprayHistory");
-    const history = existing ? JSON.parse(existing) : [];
+    const { error } = await supabase.from("spray_entries").insert(entry);
 
-    history.unshift(newEntry);
-
-    localStorage.setItem("sprayHistory", JSON.stringify(history));
+    if (error) {
+      console.error("Supabase save failed:", error);
+      toast({
+        title: "Save failed",
+        description: "Could not save entry to cloud.",
+        duration: 3000,
+      });
+      return;
+    }
 
     toast({
-      title: "Saved to Daily Log",
-      description: "Spray entry saved on this device.",
+      title: "Saved to Cloud",
+      description: "Spray entry saved and synced.",
       duration: 3000,
     });
   };
