@@ -1,3 +1,4 @@
+import { weeds } from "../data/weeds";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
