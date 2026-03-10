@@ -18,7 +18,6 @@ export function MobileLayout({ children, title }: MobileLayoutProps) {
 
   const navItems = [
     { href: "/", label: "Spray Mix", icon: Droplet },
-    { href: "/calibrate", label: "Calibrate", icon: Backpack },
     { href: "/history", label: "History", icon: History },
   ];
 
