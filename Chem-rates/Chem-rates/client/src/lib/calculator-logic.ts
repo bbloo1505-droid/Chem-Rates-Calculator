@@ -41,7 +41,8 @@ export function calculateSprayMixFromSheet(
   volumeL: number,
   siteType: "bush" | "coastal",
   dyeStrength: "none" | "standard" | "strong",
-  rows: SheetWeedRow[]
+  rows: SheetWeedRow[],
+  weedCondition: "normal" | "seeding" // NEW
 ): MixResult[] {
   const results: MixResult[] = [];
 
@@ -50,12 +51,18 @@ export function calculateSprayMixFromSheet(
   const row = rows.find((r) => r.weed === weed);
   if (!row) return results;
 
-  const glyphRate = Number(row.glyph_ml_L || 0);
-  const metsRate = Number(row.mets_g_L || 0);
+  let glyphRate = Number(row.glyph_ml_L || 0);
+  let metsRate = Number(row.mets_g_L || 0);
   const fluroxyRate = Number(row.fluroxy_ml_L || 0);
   const wetterRate = Number(row.wetter_ml_L || 0);
 
   const isBasal = row.treatment.toLowerCase() === "basal";
+
+  // NEW CONDITION LOGIC
+  // Example: if seeding we prioritise mets over glyph
+  if (weedCondition === "seeding" && metsRate > 0) {
+    glyphRate = 0;
+  }
 
   if (glyphRate > 0) {
     results.push({
