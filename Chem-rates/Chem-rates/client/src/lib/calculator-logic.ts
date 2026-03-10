@@ -34,7 +34,6 @@ export async function fetchWeedRows(): Promise<SheetWeedRow[]> {
 }
 
 export function getWeedOptions(rows: SheetWeedRow[]): string[] {
-  // remove duplicate weeds caused by multiple conditions
   return [...new Set(rows.map((row) => row.weed))];
 }
 
@@ -44,7 +43,8 @@ export function calculateSprayMixFromSheet(
   siteType: "bush" | "coastal",
   dyeStrength: "none" | "standard" | "strong",
   rows: SheetWeedRow[],
-  weedCondition: "normal" | "seeding"
+  weedCondition: "normal" | "seeding",
+  treatmentMethod: string
 ): MixResult[] {
   const results: MixResult[] = [];
 
@@ -54,8 +54,15 @@ export function calculateSprayMixFromSheet(
     rows.find(
       (r) =>
         r.weed === weed &&
-        (r.condition || "normal").toLowerCase() === weedCondition
-    ) || rows.find((r) => r.weed === weed);
+        (r.condition || "normal").toLowerCase() === weedCondition &&
+        r.treatment.toLowerCase() === treatmentMethod
+    ) ||
+    rows.find(
+      (r) =>
+        r.weed === weed &&
+        r.treatment.toLowerCase() === treatmentMethod
+    ) ||
+    rows.find((r) => r.weed === weed);
 
   if (!row) return results;
 
