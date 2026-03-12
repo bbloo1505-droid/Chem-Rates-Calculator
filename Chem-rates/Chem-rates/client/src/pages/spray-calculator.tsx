@@ -88,14 +88,15 @@ function WeedMultiPicker({
   };
 
   return (
-    <div className="space-y-2 w-full min-w-0">
-      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-        <Leaf className="w-4 h-4 text-primary" /> {title}
+    <div className="space-y-2 w-full min-w-0 max-w-full">
+      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+        <Leaf className="w-4 h-4 text-primary shrink-0" />
+        <span className="truncate">{title}</span>
       </label>
 
-      <div className="rounded-2xl border border-border bg-card p-3 w-full min-w-0 overflow-hidden">
-        <div className="max-h-56 overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 gap-2 w-full">
+      <div className="rounded-2xl border border-border bg-card p-3 w-full min-w-0 max-w-full overflow-hidden">
+        <div className="max-h-56 overflow-y-auto pr-1 w-full min-w-0">
+          <div className="grid grid-cols-1 gap-2 w-full min-w-0">
             {options.map((opt) => {
               const isSelected = selected.includes(opt);
 
@@ -104,13 +105,13 @@ function WeedMultiPicker({
                   key={opt}
                   type="button"
                   onClick={() => toggle(opt)}
-                  className={`w-full min-w-0 rounded-xl border px-3 py-3 text-left transition-all ${
+                  className={`w-full min-w-0 max-w-full rounded-xl border px-3 py-3 text-left transition-all overflow-hidden ${
                     isSelected
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-background hover:border-primary/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0 w-full">
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                         isSelected
@@ -121,7 +122,7 @@ function WeedMultiPicker({
                       {isSelected && <Check className="h-3.5 w-3.5" />}
                     </div>
 
-                    <span className="min-w-0 truncate text-sm font-semibold">
+                    <span className="min-w-0 truncate text-sm font-semibold block w-full">
                       {opt}
                     </span>
                   </div>
@@ -132,16 +133,16 @@ function WeedMultiPicker({
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">{helperText}</p>
+      <p className="text-sm text-muted-foreground min-w-0">{helperText}</p>
 
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap gap-2 pt-1 w-full min-w-0 max-w-full">
           {selected.map((weed) => (
             <div
               key={weed}
-              className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold"
+              className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold min-w-0 max-w-full"
             >
-              <span>{weed}</span>
+              <span className="truncate">{weed}</span>
             </div>
           ))}
         </div>
@@ -432,7 +433,7 @@ export default function SprayCalculator() {
   if (loadingWeeds) {
     return (
       <MobileLayout title="Weed Treatment Log">
-        <div className="p-4 text-center text-muted-foreground">
+        <div className="p-4 text-center text-muted-foreground w-full min-w-0">
           Loading weed database...
         </div>
       </MobileLayout>
@@ -442,30 +443,34 @@ export default function SprayCalculator() {
   if (weedError) {
     return (
       <MobileLayout title="Weed Treatment Log">
-        <div className="p-4 text-center text-red-500">{weedError}</div>
+        <div className="p-4 text-center text-red-500 w-full min-w-0">
+          {weedError}
+        </div>
       </MobileLayout>
     );
   }
 
   return (
     <MobileLayout title="Weed Treatment Log">
-      <div className="w-full overflow-x-hidden">
+      <div className="w-full max-w-full min-w-0 overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6 w-full max-w-full min-w-0 overflow-x-hidden"
+          style={{ width: "100%", maxWidth: "100%" }}
         >
-          <div className="space-y-2 w-full min-w-0">
-            <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                <MapPin className="w-4 h-4 text-primary" /> Site Name
+          <div className="space-y-2 w-full min-w-0 max-w-full">
+            <div className="flex items-center justify-between gap-3 min-w-0 w-full">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                <MapPin className="w-4 h-4 text-primary shrink-0" />
+                <span className="truncate">Site Name</span>
               </label>
 
               {!!siteName.trim() && (
                 <button
                   type="button"
                   onClick={clearTodaysSite}
-                  className="text-xs font-bold text-primary hover:text-primary/80"
+                  className="text-xs font-bold text-primary hover:text-primary/80 shrink-0"
                 >
                   Clear today
                 </button>
@@ -488,67 +493,71 @@ export default function SprayCalculator() {
                   localStorage.removeItem(DAILY_SITE_DATE_KEY);
                 }
               }}
-              className="w-full outdoor-input h-14"
+              className="w-full outdoor-input h-14 min-w-0 max-w-full"
             />
 
             {!!siteName.trim() && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground min-w-0">
                 This site will stay filled in on this phone for today.
               </p>
             )}
           </div>
 
-          <div className="space-y-2 w-full min-w-0">
-            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-              <Beaker className="w-4 h-4 text-primary" /> Application Method
+          <div className="space-y-2 w-full min-w-0 max-w-full">
+            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+              <Beaker className="w-4 h-4 text-primary shrink-0" />
+              <span className="truncate">Application Method</span>
             </label>
 
-            <div className="grid grid-cols-3 gap-3 w-full">
+            <div className="grid grid-cols-3 gap-3 w-full min-w-0 max-w-full">
               <button
                 type="button"
                 onClick={() => handleMethodChange("foliar")}
-                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 min-w-0 w-full overflow-hidden ${
                   applicationMethod === "foliar"
                     ? "bg-primary text-primary-foreground border-primary shadow-md"
                     : "bg-card border-border hover:border-primary/40"
                 }`}
               >
                 <div className="text-2xl mb-1">🌿</div>
-                <div className="text-sm font-bold">Foliar</div>
-                <div className="text-xs opacity-70">Spray pack</div>
+                <div className="text-sm font-bold truncate">Foliar</div>
+                <div className="text-xs opacity-70 truncate">Spray pack</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleMethodChange("dabber")}
-                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 min-w-0 w-full overflow-hidden ${
                   applicationMethod === "dabber"
                     ? "bg-primary text-primary-foreground border-primary shadow-md"
                     : "bg-card border-border hover:border-primary/40"
                 }`}
               >
                 <div className="text-2xl mb-1">🖊</div>
-                <div className="text-sm font-bold">Dabber</div>
-                <div className="text-xs opacity-70">Cut & paint</div>
+                <div className="text-sm font-bold truncate">Dabber</div>
+                <div className="text-xs opacity-70 truncate">Cut & paint</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleMethodChange("basal")}
-                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                className={`rounded-2xl p-4 text-center border transition-all active:scale-95 min-w-0 w-full overflow-hidden ${
                   applicationMethod === "basal"
                     ? "bg-primary text-primary-foreground border-primary shadow-md"
                     : "bg-card border-border hover:border-primary/40"
                 }`}
               >
                 <div className="text-2xl mb-1">🪵</div>
-                <div className="text-sm font-bold">Basal</div>
-                <div className="text-xs opacity-70">Basal bark</div>
+                <div className="text-sm font-bold truncate">Basal</div>
+                <div className="text-xs opacity-70 truncate">Basal bark</div>
               </button>
             </div>
           </div>
 
-          <div className="w-full min-w-0 overflow-x-hidden">
+          <div
+            className="w-full min-w-0 max-w-full overflow-x-hidden"
+            style={{ width: "100%", maxWidth: "100%" }}
+          >
             <AnimatePresence mode="wait" initial={false}>
               {applicationMethod === "foliar" && (
                 <motion.div
@@ -557,11 +566,13 @@ export default function SprayCalculator() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-6 w-full min-w-0"
+                  className="space-y-6 w-full min-w-0 max-w-full"
+                  style={{ width: "100%", maxWidth: "100%" }}
                 >
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                      <Leaf className="w-4 h-4 text-primary" /> Target Weed
+                  <div className="space-y-2 w-full min-w-0 max-w-full">
+                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                      <Leaf className="w-4 h-4 text-primary shrink-0" />
+                      <span className="truncate">Target Weed</span>
                     </label>
                     <select
                       value={weed}
@@ -570,7 +581,7 @@ export default function SprayCalculator() {
                         setWeedCondition("normal");
                         setAdditionalWeeds([]);
                       }}
-                      className="w-full outdoor-input h-14"
+                      className="w-full outdoor-input h-14 min-w-0 max-w-full"
                     >
                       <option value="" disabled>
                         Select a weed...
@@ -584,34 +595,35 @@ export default function SprayCalculator() {
                   </div>
 
                   {showConditionSelector && (
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                        <Leaf className="w-4 h-4 text-primary" /> Weed Condition
+                    <div className="space-y-2 w-full min-w-0 max-w-full">
+                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                        <Leaf className="w-4 h-4 text-primary shrink-0" />
+                        <span className="truncate">Weed Condition</span>
                       </label>
 
-                      <div className="flex bg-muted/50 p-1 rounded-xl">
+                      <div className="flex bg-muted/50 p-1 rounded-xl w-full min-w-0 max-w-full">
                         <button
                           type="button"
                           onClick={() => setWeedCondition("normal")}
-                          className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                          className={`flex-1 min-w-0 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
                             weedCondition === "normal"
                               ? "bg-white shadow-sm text-primary"
                               : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Not Seeding
+                          <span className="truncate block">Not Seeding</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setWeedCondition("seeding")}
-                          className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                          className={`flex-1 min-w-0 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
                             weedCondition === "seeding"
                               ? "bg-white shadow-sm text-primary"
                               : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Seed Heads
+                          <span className="truncate block">Seed Heads</span>
                         </button>
                       </div>
                     </div>
@@ -625,9 +637,10 @@ export default function SprayCalculator() {
                     helperText="Select all extra weeds treated with this same spray pack."
                   />
 
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                      <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
+                  <div className="space-y-2 w-full min-w-0 max-w-full">
+                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                      <Beaker className="w-4 h-4 text-primary shrink-0" />
+                      <span className="truncate">Spray Volume (Litres)</span>
                     </label>
                     <input
                       type="number"
@@ -635,50 +648,54 @@ export default function SprayCalculator() {
                       placeholder="15"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
-                      className="w-full outdoor-input h-14"
+                      className="w-full outdoor-input h-14 min-w-0 max-w-full"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 w-full">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                        <MapPin className="w-4 h-4 text-primary" /> Site Type
+                  <div className="grid grid-cols-2 gap-4 w-full min-w-0 max-w-full">
+                    <div className="space-y-2 min-w-0">
+                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                        <MapPin className="w-4 h-4 text-primary shrink-0" />
+                        <span className="truncate">Site Type</span>
                       </label>
-                      <div className="flex bg-muted/50 p-1 rounded-xl">
+                      <div className="flex bg-muted/50 p-1 rounded-xl w-full min-w-0 max-w-full">
                         {(["bush", "coastal"] as const).map((type) => (
                           <button
                             key={type}
                             type="button"
                             onClick={() => setSiteType(type)}
-                            className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                            className={`flex-1 min-w-0 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
                               siteType === type
                                 ? "bg-white shadow-sm text-primary"
                                 : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            {type}
+                            <span className="truncate block">{type}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                        <Droplet className="w-4 h-4 text-primary" /> Dye
+                    <div className="space-y-2 min-w-0">
+                      <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                        <Droplet className="w-4 h-4 text-primary shrink-0" />
+                        <span className="truncate">Dye</span>
                       </label>
-                      <div className="flex bg-muted/50 p-1 rounded-xl">
+                      <div className="flex bg-muted/50 p-1 rounded-xl w-full min-w-0 max-w-full">
                         {(["none", "standard", "strong"] as const).map((type) => (
                           <button
                             key={type}
                             type="button"
                             onClick={() => setDyeStrength(type)}
-                            className={`flex-1 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
+                            className={`flex-1 min-w-0 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
                               dyeStrength === type
                                 ? "bg-white shadow-sm text-primary"
                                 : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            {type === "standard" ? "Std" : type}
+                            <span className="truncate block">
+                              {type === "standard" ? "Std" : type}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -694,7 +711,8 @@ export default function SprayCalculator() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-6 w-full min-w-0"
+                  className="space-y-6 w-full min-w-0 max-w-full"
+                  style={{ width: "100%", maxWidth: "100%" }}
                 >
                   <WeedMultiPicker
                     title="Weeds Targeted With Dabber"
@@ -704,9 +722,10 @@ export default function SprayCalculator() {
                     helperText="Select all weeds treated with the dabber."
                   />
 
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                      <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (ml)
+                  <div className="space-y-2 w-full min-w-0 max-w-full">
+                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                      <Beaker className="w-4 h-4 text-primary shrink-0" />
+                      <span className="truncate">Dabber Volume Used (ml)</span>
                     </label>
                     <input
                       type="number"
@@ -715,7 +734,7 @@ export default function SprayCalculator() {
                       placeholder="200"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
-                      className="w-full outdoor-input h-14"
+                      className="w-full outdoor-input h-14 min-w-0 max-w-full"
                     />
                   </div>
                 </motion.div>
@@ -728,29 +747,32 @@ export default function SprayCalculator() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-6 w-full min-w-0"
+                  className="space-y-6 w-full min-w-0 max-w-full"
+                  style={{ width: "100%", maxWidth: "100%" }}
                 >
-                  <div className="rounded-2xl bg-primary/5 border border-primary/10 p-4">
-                    <p className="text-sm font-semibold text-primary">
+                  <div className="rounded-2xl bg-primary/5 border border-primary/10 p-4 w-full min-w-0 max-w-full">
+                    <p className="text-sm font-semibold text-primary min-w-0">
                       Basal bark is set to Ochna only.
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                      <Leaf className="w-4 h-4 text-primary" /> Target Weed
+                  <div className="space-y-2 w-full min-w-0 max-w-full">
+                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                      <Leaf className="w-4 h-4 text-primary shrink-0" />
+                      <span className="truncate">Target Weed</span>
                     </label>
                     <input
                       type="text"
                       value="Ochna"
                       disabled
-                      className="w-full outdoor-input h-14 opacity-70"
+                      className="w-full outdoor-input h-14 opacity-70 min-w-0 max-w-full"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                      <Beaker className="w-4 h-4 text-primary" /> Basal Mix Volume (Litres)
+                  <div className="space-y-2 w-full min-w-0 max-w-full">
+                    <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1 min-w-0">
+                      <Beaker className="w-4 h-4 text-primary shrink-0" />
+                      <span className="truncate">Basal Mix Volume (Litres)</span>
                     </label>
                     <input
                       type="number"
@@ -758,7 +780,7 @@ export default function SprayCalculator() {
                       placeholder="5"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
-                      className="w-full outdoor-input h-14"
+                      className="w-full outdoor-input h-14 min-w-0 max-w-full"
                     />
                   </div>
                 </motion.div>
@@ -772,39 +794,40 @@ export default function SprayCalculator() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="pt-6 space-y-4 w-full min-w-0"
+                className="pt-6 space-y-4 w-full min-w-0 max-w-full overflow-x-hidden"
+                style={{ width: "100%", maxWidth: "100%" }}
               >
-                <div className="flex items-center justify-between border-b-2 border-primary/20 pb-2">
-                  <h2 className="text-xl font-display font-bold text-foreground">
+                <div className="flex items-center justify-between gap-3 border-b-2 border-primary/20 pb-2 w-full min-w-0">
+                  <h2 className="text-xl font-display font-bold text-foreground min-w-0 truncate">
                     {applicationMethod === "dabber"
                       ? "Dabber Mix"
                       : applicationMethod === "basal"
                         ? "Basal Bark Mix"
                         : "Required Mix"}
                   </h2>
-                  <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
+                  <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold shrink-0">
                     {applicationMethod === "dabber"
                       ? `${volumeNum}ml Total`
                       : `${volumeNum}L Total`}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-3 w-full min-w-0">
+                  <p className="text-sm text-muted-foreground min-w-0">
                     Tap any value to adjust the mix before saving.
                   </p>
 
                   <button
                     type="button"
                     onClick={handleResetMix}
-                    className="flex items-center gap-2 rounded-lg border border-primary/20 px-3 py-2 text-sm font-bold text-primary hover:bg-primary/5 transition-colors"
+                    className="flex items-center gap-2 rounded-lg border border-primary/20 px-3 py-2 text-sm font-bold text-primary hover:bg-primary/5 transition-colors shrink-0"
                   >
                     <RotateCcw className="w-4 h-4" />
                     Reset
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 w-full">
+                <div className="grid grid-cols-2 gap-3 w-full min-w-0 max-w-full">
                   {editableResults.map((res, i) => {
                     const ingredientStyles: Record<
                       string,
@@ -890,46 +913,50 @@ export default function SprayCalculator() {
                         initial={{ opacity: 0, y: 12, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ delay: i * 0.08 }}
-                        className={`relative rounded-3xl p-4 shadow-sm border overflow-hidden ${style.card}`}
+                        className={`relative rounded-3xl p-4 shadow-sm border overflow-hidden min-w-0 max-w-full ${style.card}`}
                       >
                         <div className="absolute top-0 right-0 text-4xl opacity-10 pointer-events-none pr-3 pt-2">
                           {style.icon}
                         </div>
 
-                        <div className="flex items-start justify-between gap-2 mb-4">
-                          <div className="min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-4 min-w-0 w-full">
+                          <div className="min-w-0 flex-1">
                             <div
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}
+                              className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}
                             >
-                              {res.ingredient}
+                              <span className="truncate">{res.ingredient}</span>
                             </div>
                           </div>
 
-                          <div className="text-lg leading-none">{style.icon}</div>
+                          <div className="text-lg leading-none shrink-0">
+                            {style.icon}
+                          </div>
                         </div>
 
-                        <div className="rounded-2xl bg-white/60 border border-white/50 px-3 py-4">
+                        <div className="rounded-2xl bg-white/60 border border-white/50 px-3 py-4 min-w-0 max-w-full overflow-hidden">
                           <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-2">
                             Amount
                           </div>
 
-                          <div className="flex items-end gap-2">
+                          <div className="flex items-end gap-2 min-w-0 w-full">
                             <input
                               type="number"
                               inputMode="decimal"
                               step="0.1"
                               value={Number.isFinite(res.amount) ? res.amount : ""}
                               onChange={(e) => handleAmountChange(i, e.target.value)}
-                              className={`w-full bg-transparent border-none outline-none text-4xl font-black p-0 appearance-none ${style.input}`}
+                              className={`w-full min-w-0 bg-transparent border-none outline-none text-4xl font-black p-0 appearance-none ${style.input}`}
                             />
-                            <span className={`text-lg font-bold mb-1 ${style.unit}`}>
+                            <span
+                              className={`text-lg font-bold mb-1 shrink-0 ${style.unit}`}
+                            >
                               {res.unit}
                             </span>
                           </div>
                         </div>
 
                         {calculatedResults[i] && (
-                          <div className={`mt-3 text-xs font-medium ${style.note}`}>
+                          <div className={`mt-3 text-xs font-medium break-words ${style.note}`}>
                             Calculated: {formatDisplayAmount(calculatedResults[i].amount)}{" "}
                             {calculatedResults[i].unit}
                           </div>
@@ -944,10 +971,10 @@ export default function SprayCalculator() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}
                   onClick={handleSave}
-                  className="w-full mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
+                  className="w-full min-w-0 mt-6 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2"
                 >
-                  <CheckCircle2 className="w-6 h-6 text-secondary" />
-                  Save to Daily Log
+                  <CheckCircle2 className="w-6 h-6 text-secondary shrink-0" />
+                  <span className="truncate">Save to Daily Log</span>
                 </motion.button>
               </motion.div>
             )}
