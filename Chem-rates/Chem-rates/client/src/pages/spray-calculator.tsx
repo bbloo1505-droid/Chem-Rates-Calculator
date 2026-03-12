@@ -347,7 +347,7 @@ export default function SprayCalculator() {
 
   if (loadingWeeds) {
     return (
-      <MobileLayout title="Mix Calculator">
+      <MobileLayout title="Weed Treatment Log">
         <div className="p-4 text-center text-muted-foreground">
           Loading weed database...
         </div>
