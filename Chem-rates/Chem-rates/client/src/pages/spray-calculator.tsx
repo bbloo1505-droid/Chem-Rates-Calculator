@@ -302,14 +302,14 @@ export default function SprayCalculator() {
         applicationMethod === "basal"
           ? "Ochna"
           : applicationMethod === "dabber"
-          ? dabberWeeds.length === 1
-            ? dabberWeeds[0]
-            : dabberWeeds.length > 1
-            ? "Mixed"
-            : "Unknown"
-          : additionalWeeds.length > 0
-          ? "Mixed"
-          : weed,
+            ? dabberWeeds.length === 1
+              ? dabberWeeds[0]
+              : dabberWeeds.length > 1
+                ? "Mixed"
+                : "Unknown"
+            : additionalWeeds.length > 0
+              ? "Mixed"
+              : weed,
       additional_weeds: applicationMethod === "foliar" ? additionalWeeds : [],
       dabber_weeds: applicationMethod === "dabber" ? dabberWeeds : [],
       weed_condition:
@@ -357,14 +357,14 @@ export default function SprayCalculator() {
 
   if (weedError) {
     return (
-      <MobileLayout title="Mix Calculator">
+      <MobileLayout title="Weed Treatment Log">
         <div className="p-4 text-center text-red-500">{weedError}</div>
       </MobileLayout>
     );
   }
 
   return (
-    <MobileLayout title="Mix Calculator">
+    <MobileLayout title="Weed Treatment Log">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -414,59 +414,54 @@ export default function SprayCalculator() {
         </div>
 
         <div className="space-y-2">
-  <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-    <Beaker className="w-4 h-4 text-primary" /> Application Method
-  </label>
+          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+            <Beaker className="w-4 h-4 text-primary" /> Application Method
+          </label>
 
-  <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => handleMethodChange("foliar")}
+              className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                applicationMethod === "foliar"
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "bg-card border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="text-2xl mb-1">🌿</div>
+              <div className="text-sm font-bold">Foliar</div>
+              <div className="text-xs opacity-70">Spray pack</div>
+            </button>
 
-    {/* FOLIAR */}
-    <button
-      type="button"
-      onClick={() => handleMethodChange("foliar")}
-      className={`rounded-2xl p-4 text-center border transition-all ${
-        applicationMethod === "foliar"
-          ? "bg-primary text-primary-foreground border-primary shadow-md"
-          : "bg-card border-border hover:border-primary/40"
-      }`}
-    >
-      <div className="text-2xl mb-1">🌿</div>
-      <div className="text-sm font-bold">Foliar</div>
-      <div className="text-xs opacity-70">Spray pack</div>
-    </button>
+            <button
+              type="button"
+              onClick={() => handleMethodChange("dabber")}
+              className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                applicationMethod === "dabber"
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "bg-card border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="text-2xl mb-1">🖊</div>
+              <div className="text-sm font-bold">Dabber</div>
+              <div className="text-xs opacity-70">Cut & paint</div>
+            </button>
 
-    {/* DABBER */}
-    <button
-      type="button"
-      onClick={() => handleMethodChange("dabber")}
-      className={`rounded-2xl p-4 text-center border transition-all ${
-        applicationMethod === "dabber"
-          ? "bg-primary text-primary-foreground border-primary shadow-md"
-          : "bg-card border-border hover:border-primary/40"
-      }`}
-    >
-      <div className="text-2xl mb-1">🖊</div>
-      <div className="text-sm font-bold">Dabber</div>
-      <div className="text-xs opacity-70">Cut & paint</div>
-    </button>
-
-    {/* BASAL */}
-    <button
-      type="button"
-      onClick={() => handleMethodChange("basal")}
-      className={`rounded-2xl p-4 text-center border transition-all ${
-        applicationMethod === "basal"
-          ? "bg-primary text-primary-foreground border-primary shadow-md"
-          : "bg-card border-border hover:border-primary/40"
-      }`}
-    >
-      <div className="text-2xl mb-1">🪵</div>
-      <div className="text-sm font-bold">Basal</div>
-      <div className="text-xs opacity-70">Basal bark</div>
-    </button>
-
-  </div>
-</div>
+            <button
+              type="button"
+              onClick={() => handleMethodChange("basal")}
+              className={`rounded-2xl p-4 text-center border transition-all active:scale-95 ${
+                applicationMethod === "basal"
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "bg-card border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="text-2xl mb-1">🪵</div>
+              <div className="text-sm font-bold">Basal</div>
+              <div className="text-xs opacity-70">Basal bark</div>
+            </button>
+          </div>
+        </div>
 
         {applicationMethod === "foliar" && (
           <>
@@ -744,8 +739,8 @@ export default function SprayCalculator() {
                   {applicationMethod === "dabber"
                     ? "Dabber Mix"
                     : applicationMethod === "basal"
-                    ? "Basal Bark Mix"
-                    : "Required Mix"}
+                      ? "Basal Bark Mix"
+                      : "Required Mix"}
                 </h2>
                 <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
                   {applicationMethod === "dabber"
@@ -769,180 +764,135 @@ export default function SprayCalculator() {
                 </button>
               </div>
 
-           <div className="grid grid-cols-2 gap-3">
-  {editableResults.map((res, i) => {
-    const ingredientStyles: Record<
-      string,
-      {
-        card: string;
-        badge: string;
-        unit: string;
-        input: string;
-        note: string;
-        icon: string;
-      }
-    > = {
-      Glyphosate: {
-        card: "bg-emerald-50 border-emerald-200 text-emerald-950",
-        badge: "bg-emerald-100 text-emerald-700",
-        unit: "text-emerald-700",
-        input: "text-emerald-950 placeholder:text-emerald-300",
-        note: "text-emerald-700/80",
-        icon: "🌿",
-      },
-      Mets: {
-        card: "bg-violet-50 border-violet-200 text-violet-950",
-        badge: "bg-violet-100 text-violet-700",
-        unit: "text-violet-700",
-        input: "text-violet-950 placeholder:text-violet-300",
-        note: "text-violet-700/80",
-        icon: "🧪",
-      },
-      Fluroxy: {
-        card: "bg-amber-50 border-amber-200 text-amber-950",
-        badge: "bg-amber-100 text-amber-700",
-        unit: "text-amber-700",
-        input: "text-amber-950 placeholder:text-amber-300",
-        note: "text-amber-700/80",
-        icon: "🍂",
-      },
-      "Garlon / Triclopyr": {
-        card: "bg-orange-50 border-orange-200 text-orange-950",
-        badge: "bg-orange-100 text-orange-700",
-        unit: "text-orange-700",
-        input: "text-orange-950 placeholder:text-orange-300",
-        note: "text-orange-700/80",
-        icon: "🪵",
-      },
-      "Diesel / Basal carrier": {
-        card: "bg-stone-50 border-stone-200 text-stone-950",
-        badge: "bg-stone-200 text-stone-700",
-        unit: "text-stone-700",
-        input: "text-stone-950 placeholder:text-stone-400",
-        note: "text-stone-700/80",
-        icon: "⛽",
-      },
-      Water: {
-        card: "bg-sky-50 border-sky-200 text-sky-950",
-        badge: "bg-sky-100 text-sky-700",
-        unit: "text-sky-700",
-        input: "text-sky-950 placeholder:text-sky-300",
-        note: "text-sky-700/80",
-        icon: "💧",
-      },
-      Dye: {
-        card: "bg-pink-50 border-pink-200 text-pink-950",
-        badge: "bg-pink-100 text-pink-700",
-        unit: "text-pink-700",
-        input: "text-pink-950 placeholder:text-pink-300",
-        note: "text-pink-700/80",
-        icon: "🎨",
-      },
-    };
+              <div className="grid grid-cols-2 gap-3">
+                {editableResults.map((res, i) => {
+                  const ingredientStyles: Record<
+                    string,
+                    {
+                      card: string;
+                      badge: string;
+                      unit: string;
+                      input: string;
+                      note: string;
+                      icon: string;
+                    }
+                  > = {
+                    Glyphosate: {
+                      card: "bg-emerald-50 border-emerald-200 text-emerald-950",
+                      badge: "bg-emerald-100 text-emerald-700",
+                      unit: "text-emerald-700",
+                      input: "text-emerald-950 placeholder:text-emerald-300",
+                      note: "text-emerald-700/80",
+                      icon: "🌿",
+                    },
+                    Mets: {
+                      card: "bg-violet-50 border-violet-200 text-violet-950",
+                      badge: "bg-violet-100 text-violet-700",
+                      unit: "text-violet-700",
+                      input: "text-violet-950 placeholder:text-violet-300",
+                      note: "text-violet-700/80",
+                      icon: "🧪",
+                    },
+                    Fluroxy: {
+                      card: "bg-amber-50 border-amber-200 text-amber-950",
+                      badge: "bg-amber-100 text-amber-700",
+                      unit: "text-amber-700",
+                      input: "text-amber-950 placeholder:text-amber-300",
+                      note: "text-amber-700/80",
+                      icon: "🍂",
+                    },
+                    "Garlon / Triclopyr": {
+                      card: "bg-orange-50 border-orange-200 text-orange-950",
+                      badge: "bg-orange-100 text-orange-700",
+                      unit: "text-orange-700",
+                      input: "text-orange-950 placeholder:text-orange-300",
+                      note: "text-orange-700/80",
+                      icon: "🪵",
+                    },
+                    "Diesel / Basal carrier": {
+                      card: "bg-stone-50 border-stone-200 text-stone-950",
+                      badge: "bg-stone-200 text-stone-700",
+                      unit: "text-stone-700",
+                      input: "text-stone-950 placeholder:text-stone-400",
+                      note: "text-stone-700/80",
+                      icon: "⛽",
+                    },
+                    Water: {
+                      card: "bg-sky-50 border-sky-200 text-sky-950",
+                      badge: "bg-sky-100 text-sky-700",
+                      unit: "text-sky-700",
+                      input: "text-sky-950 placeholder:text-sky-300",
+                      note: "text-sky-700/80",
+                      icon: "💧",
+                    },
+                    Dye: {
+                      card: "bg-pink-50 border-pink-200 text-pink-950",
+                      badge: "bg-pink-100 text-pink-700",
+                      unit: "text-pink-700",
+                      input: "text-pink-950 placeholder:text-pink-300",
+                      note: "text-pink-700/80",
+                      icon: "🎨",
+                    },
+                  };
 
-    const style = ingredientStyles[res.ingredient] ?? {
-      card: "bg-card border-border text-card-foreground",
-      badge: "bg-muted text-muted-foreground",
-      unit: "text-primary/75",
-      input: "text-foreground placeholder:text-muted-foreground",
-      note: "text-muted-foreground",
-      icon: "🧴",
-    };
+                  const style = ingredientStyles[res.ingredient] ?? {
+                    card: "bg-card border-border text-card-foreground",
+                    badge: "bg-muted text-muted-foreground",
+                    unit: "text-primary/75",
+                    input: "text-foreground placeholder:text-muted-foreground",
+                    note: "text-muted-foreground",
+                    icon: "🧴",
+                  };
 
-    return (
-      <motion.div
-        key={`${res.ingredient}-${i}`}
-        initial={{ opacity: 0, y: 12, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: i * 0.08 }}
-        className={`relative rounded-3xl p-4 shadow-sm border overflow-hidden ${style.card}`}
-      >
-        <div className="absolute top-0 right-0 text-4xl opacity-10 pointer-events-none pr-3 pt-2">
-          {style.icon}
-        </div>
-
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <div className="min-w-0">
-            <div className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}>
-              {res.ingredient}
-            </div>
-          </div>
-
-          <div className="text-lg leading-none">
-            {style.icon}
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-white/60 border border-white/50 px-3 py-4">
-          <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-2">
-            Amount
-          </div>
-
-          <div className="flex items-end gap-2">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              value={Number.isFinite(res.amount) ? res.amount : ""}
-              onChange={(e) => handleAmountChange(i, e.target.value)}
-              className={`w-full bg-transparent border-none outline-none text-4xl font-black p-0 appearance-none ${style.input}`}
-            />
-            <span className={`text-lg font-bold mb-1 ${style.unit}`}>
-              {res.unit}
-            </span>
-          </div>
-        </div>
-
-        {calculatedResults[i] && (
-          <div className={`mt-3 text-xs font-medium ${style.note}`}>
-            Calculated: {formatDisplayAmount(calculatedResults[i].amount)}{" "}
-            {calculatedResults[i].unit}
-          </div>
-        )}
-      </motion.div>
-    );
-  })}
-</div>
+                  return (
+                    <motion.div
+                      key={`${res.ingredient}-${i}`}
+                      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: i * 0.08 }}
+                      className={`relative rounded-3xl p-4 shadow-sm border overflow-hidden ${style.card}`}
                     >
-                      <div
-                        className={`text-sm font-bold uppercase tracking-wide ${
-                          highlight ? "text-primary-foreground/80" : "text-primary"
-                        }`}
-                      >
-                        {res.ingredient}
+                      <div className="absolute top-0 right-0 text-4xl opacity-10 pointer-events-none pr-3 pt-2">
+                        {style.icon}
                       </div>
 
-                      <div className="mt-5 flex items-end gap-2">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="0.1"
-                          value={Number.isFinite(res.amount) ? res.amount : ""}
-                          onChange={(e) => handleAmountChange(i, e.target.value)}
-                          className={`w-full bg-transparent border-none outline-none text-4xl font-bold p-0 appearance-none ${
-                            highlight
-                              ? "text-primary-foreground placeholder:text-primary-foreground/40"
-                              : "text-foreground placeholder:text-muted-foreground"
-                          }`}
-                        />
-                        <span
-                          className={`text-xl font-semibold mb-1 ${
-                            highlight ? "text-primary-foreground/85" : "text-primary/75"
-                          }`}
-                        >
-                          {res.unit}
-                        </span>
+                      <div className="flex items-start justify-between gap-2 mb-4">
+                        <div className="min-w-0">
+                          <div
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}
+                          >
+                            {res.ingredient}
+                          </div>
+                        </div>
+
+                        <div className="text-lg leading-none">{style.icon}</div>
+                      </div>
+
+                      <div className="rounded-2xl bg-white/60 border border-white/50 px-3 py-4">
+                        <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-2">
+                          Amount
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.1"
+                            value={Number.isFinite(res.amount) ? res.amount : ""}
+                            onChange={(e) => handleAmountChange(i, e.target.value)}
+                            className={`w-full bg-transparent border-none outline-none text-4xl font-black p-0 appearance-none ${style.input}`}
+                          />
+                          <span className={`text-lg font-bold mb-1 ${style.unit}`}>
+                            {res.unit}
+                          </span>
+                        </div>
                       </div>
 
                       {calculatedResults[i] && (
-                        <p
-                          className={`mt-3 text-xs ${
-                            highlight ? "text-primary-foreground/75" : "text-muted-foreground"
-                          }`}
-                        >
+                        <div className={`mt-3 text-xs font-medium ${style.note}`}>
                           Calculated: {formatDisplayAmount(calculatedResults[i].amount)}{" "}
                           {calculatedResults[i].unit}
-                        </p>
+                        </div>
                       )}
                     </motion.div>
                   );
