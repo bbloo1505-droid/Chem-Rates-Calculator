@@ -18,6 +18,8 @@ import {
   Clock3,
   ChevronDown,
   ChevronUp,
+  Save,
+  X,
 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { useToast } from "@/hooks/use-toast";
@@ -75,6 +77,12 @@ type DailySubmissionRecord = {
 type DailySubmissionMap = Record<string, DailySubmissionRecord>;
 
 const DAILY_STATUS_STORAGE_KEY = "dailySummaryStatus";
+const DAILY_SITE_STORAGE_KEY = "dailySiteName";
+const DAILY_SITE_DATE_KEY = "dailySiteDate";
+
+function getTodayString() {
+  return new Date().toLocaleDateString("en-CA");
+}
 
 function safeDateLabel(dateString?: string) {
   if (!dateString) return "Unknown date";
@@ -182,12 +190,69 @@ export default function HistoryPage() {
   const [confirmSubmitDate, setConfirmSubmitDate] = useState<string | null>(null);
   const [openSummaryDate, setOpenSummaryDate] = useState<string | null>(null);
 
+  const [dailySiteInput, setDailySiteInput] = useState("");
+  const [savedDailySite, setSavedDailySite] = useState("");
+
   const { toast } = useToast();
 
   useEffect(() => {
     loadSprayHistory();
     setSubmissionStatus(loadDailySubmissionStatus());
+    loadDailySite();
   }, []);
+
+  const loadDailySite = () => {
+    const savedSiteName = localStorage.getItem(DAILY_SITE_STORAGE_KEY);
+    const savedSiteDate = localStorage.getItem(DAILY_SITE_DATE_KEY);
+    const today = getTodayString();
+
+    if (savedSiteName && savedSiteDate === today) {
+      setSavedDailySite(savedSiteName);
+      setDailySiteInput(savedSiteName);
+    } else {
+      localStorage.removeItem(DAILY_SITE_STORAGE_KEY);
+      localStorage.removeItem(DAILY_SITE_DATE_KEY);
+      setSavedDailySite("");
+      setDailySiteInput("");
+    }
+  };
+
+  const saveDailySite = () => {
+    const trimmed = dailySiteInput.trim();
+
+    if (!trimmed) {
+      toast({
+        title: "No site entered",
+        description: "Enter a site name first.",
+        duration: 2500,
+      });
+      return;
+    }
+
+    localStorage.setItem(DAILY_SITE_STORAGE_KEY, trimmed);
+    localStorage.setItem(DAILY_SITE_DATE_KEY, getTodayString());
+    setSavedDailySite(trimmed);
+    setDailySiteInput(trimmed);
+
+    toast({
+      title: "Today's site saved",
+      description: `${trimmed} will now auto-fill in the calculator today.`,
+      duration: 2500,
+    });
+  };
+
+  const clearDailySite = () => {
+    localStorage.removeItem(DAILY_SITE_STORAGE_KEY);
+    localStorage.removeItem(DAILY_SITE_DATE_KEY);
+    setSavedDailySite("");
+    setDailySiteInput("");
+
+    toast({
+      title: "Today's site cleared",
+      description: "The calculator will no longer auto-fill a site name.",
+      duration: 2500,
+    });
+  };
 
   const loadSprayHistory = async () => {
     try {
@@ -404,6 +469,61 @@ export default function HistoryPage() {
   return (
     <MobileLayout title="History">
       <div className="space-y-6">
+        <div className="tactile-card p-5 rounded-2xl space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                Today's Site
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Set the site once here and the calculator will auto-fill it on this phone today.
+              </p>
+            </div>
+
+            {savedDailySite && (
+              <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                Saved today
+              </span>
+            )}
+          </div>
+
+          <input
+            type="text"
+            value={dailySiteInput}
+            onChange={(e) => setDailySiteInput(e.target.value)}
+            placeholder="e.g. Cooran, Mudjimba dune site"
+            className="w-full outdoor-input h-14"
+          />
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={saveDailySite}
+              className="flex-1 rounded-xl bg-primary py-3 font-bold text-primary-foreground flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              Save Today's Site
+            </button>
+
+            <button
+              type="button"
+              onClick={clearDailySite}
+              className="rounded-xl bg-muted px-4 py-3 font-bold text-foreground flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </button>
+          </div>
+
+          {savedDailySite && (
+            <div className="rounded-xl border border-border/40 p-3 bg-background/50 text-sm">
+              <span className="font-semibold text-foreground">Current saved site:</span>{" "}
+              <span className="text-muted-foreground">{savedDailySite}</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex bg-muted p-1.5 rounded-2xl">
           <button
             onClick={() => setTab("spray")}
@@ -474,7 +594,7 @@ export default function HistoryPage() {
                             </span>
                             <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" /> {item.volume || 0}
-                                {item.application_method === "dabber" ? "ml" : "L"}
+                              {item.application_method === "dabber" ? "ml" : "L"}
                             </span>
                             <span>{item.mix_type || "other"}</span>
                             {item.application_method && <span>{item.application_method}</span>}
@@ -570,9 +690,7 @@ export default function HistoryPage() {
                       <div key={summary.date} className="tactile-card rounded-2xl overflow-hidden">
                         <button
                           type="button"
-                          onClick={() =>
-                            setOpenSummaryDate(isOpen ? null : summary.date)
-                          }
+                          onClick={() => setOpenSummaryDate(isOpen ? null : summary.date)}
                           className="w-full p-5 text-left"
                         >
                           <div className="flex justify-between items-start gap-3">
