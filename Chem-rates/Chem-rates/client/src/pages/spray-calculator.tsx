@@ -36,6 +36,13 @@ type EditableResult = {
   unit: string;
 };
 
+const DAILY_SITE_STORAGE_KEY = "dailySiteName";
+const DAILY_SITE_DATE_KEY = "dailySiteDate";
+
+function getTodayString() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
 function getMixType(results: { ingredient: string }[]): MixType {
   const ingredients = results.map((r) => r.ingredient.toLowerCase());
 
@@ -100,6 +107,19 @@ export default function SprayCalculator() {
         setWeedError("Could not load weeds from Google Sheets.");
         setLoadingWeeds(false);
       });
+  }, []);
+
+  useEffect(() => {
+    const savedSiteName = localStorage.getItem(DAILY_SITE_STORAGE_KEY);
+    const savedSiteDate = localStorage.getItem(DAILY_SITE_DATE_KEY);
+    const today = getTodayString();
+
+    if (savedSiteName && savedSiteDate === today) {
+      setSiteName(savedSiteName);
+    } else {
+      localStorage.removeItem(DAILY_SITE_STORAGE_KEY);
+      localStorage.removeItem(DAILY_SITE_DATE_KEY);
+    }
   }, []);
 
   const volumeNum = parseFloat(volume);
@@ -256,6 +276,18 @@ export default function SprayCalculator() {
     }
   };
 
+  const clearTodaysSite = () => {
+    setSiteName("");
+    localStorage.removeItem(DAILY_SITE_STORAGE_KEY);
+    localStorage.removeItem(DAILY_SITE_DATE_KEY);
+
+    toast({
+      title: "Site cleared",
+      description: "Today's saved site has been cleared.",
+      duration: 2500,
+    });
+  };
+
   const handleSave = async () => {
     if (!isValid || editableResults.length === 0) return;
 
@@ -264,7 +296,7 @@ export default function SprayCalculator() {
     const entry = {
       user_id: "worker1",
       site_name: siteName.trim(),
-      date: new Date().toLocaleDateString("en-CA"),
+      date: getTodayString(),
       application_method: applicationMethod,
       weed:
         applicationMethod === "basal"
@@ -339,16 +371,46 @@ export default function SprayCalculator() {
         className="space-y-6"
       >
         <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <MapPin className="w-4 h-4 text-primary" /> Site Name
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+              <MapPin className="w-4 h-4 text-primary" /> Site Name
+            </label>
+
+            {!!siteName.trim() && (
+              <button
+                type="button"
+                onClick={clearTodaysSite}
+                className="text-xs font-bold text-primary hover:text-primary/80"
+              >
+                Clear today
+              </button>
+            )}
+          </div>
+
           <input
             type="text"
             placeholder="e.g. Cooran, Mudjimba dune site"
             value={siteName}
-            onChange={(e) => setSiteName(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSiteName(value);
+
+              if (value.trim()) {
+                localStorage.setItem(DAILY_SITE_STORAGE_KEY, value);
+                localStorage.setItem(DAILY_SITE_DATE_KEY, getTodayString());
+              } else {
+                localStorage.removeItem(DAILY_SITE_STORAGE_KEY);
+                localStorage.removeItem(DAILY_SITE_DATE_KEY);
+              }
+            }}
             className="w-full outdoor-input h-14"
           />
+
+          {!!siteName.trim() && (
+            <p className="text-sm text-muted-foreground">
+              This site will stay filled in on this phone for today.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
