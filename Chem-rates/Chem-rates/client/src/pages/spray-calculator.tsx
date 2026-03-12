@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Droplet,
+  Droplet,<div className="p-4 w-full max-w-md mx-auto">
   Leaf,
   MapPin,
   Beaker,
