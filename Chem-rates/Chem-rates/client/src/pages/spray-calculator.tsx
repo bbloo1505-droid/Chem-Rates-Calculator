@@ -584,12 +584,12 @@ export default function SprayCalculator() {
 
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-                <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (Litres)
+              <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (ml)
               </label>
               <input
                 type="number"
                 inputMode="decimal"
-                placeholder="2"
+                placeholder="200"
                 value={volume}
                 onChange={(e) => setVolume(e.target.value)}
                 className="w-full outdoor-input h-14"
