@@ -7,7 +7,6 @@ import {
   Beaker,
   CheckCircle2,
   RotateCcw,
-  Plus,
 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import {
@@ -44,12 +43,14 @@ function getMixType(results: { ingredient: string }[]): MixType {
   const hasMets = ingredients.includes("mets");
   const hasFluroxy = ingredients.includes("fluroxy");
   const hasBiodiesel = ingredients.includes("biodiesel");
+  const hasDiesel = ingredients.includes("diesel / basal carrier");
 
   if (hasGlyph && hasMets) return "glyph-mets";
   if (hasGlyph) return "glyph";
   if (hasMets) return "mets";
   if (hasFluroxy && hasBiodiesel) return "fluroxy-basal";
   if (hasFluroxy) return "fluroxy-foliar";
+  if (hasDiesel) return "fluroxy-basal";
   return "other";
 }
 
@@ -81,10 +82,7 @@ export default function SprayCalculator() {
   const [editableResults, setEditableResults] = useState<EditableResult[]>([]);
 
   const [additionalWeeds, setAdditionalWeeds] = useState<string[]>([]);
-  const [selectedAdditionalWeed, setSelectedAdditionalWeed] = useState("");
-
   const [dabberWeeds, setDabberWeeds] = useState<string[]>([]);
-  const [selectedDabberWeed, setSelectedDabberWeed] = useState("");
 
   const { toast } = useToast();
 
@@ -166,7 +164,7 @@ export default function SprayCalculator() {
     if (applicationMethod === "basal") {
       if (!isBasalValid) return [];
 
-      // Adjust this fixed mix if your actual Ochna basal rate is different
+      // Change this if your real Ochna basal rate is different
       return [
         {
           ingredient: "Garlon / Triclopyr",
@@ -215,6 +213,7 @@ export default function SprayCalculator() {
     setEditableResults((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
+
         const parsed = parseFloat(value);
 
         return {
@@ -241,49 +240,20 @@ export default function SprayCalculator() {
     });
   };
 
-  const availableAdditionalWeedOptions = weedOptions.filter(
-    (opt) => opt !== weed && !additionalWeeds.includes(opt)
-  );
-
-  const handleAddAdditionalWeed = () => {
-    if (!selectedAdditionalWeed) return;
-    setAdditionalWeeds((prev) => [...prev, selectedAdditionalWeed]);
-    setSelectedAdditionalWeed("");
-  };
-
-  const handleRemoveAdditionalWeed = (weedToRemove: string) => {
-    setAdditionalWeeds((prev) => prev.filter((w) => w !== weedToRemove));
-  };
-
-  const availableDabberWeedOptions = weedOptions.filter(
-    (opt) => !dabberWeeds.includes(opt)
-  );
-
-  const handleAddDabberWeed = () => {
-    if (!selectedDabberWeed) return;
-    setDabberWeeds((prev) => [...prev, selectedDabberWeed]);
-    setSelectedDabberWeed("");
-  };
-
-  const handleRemoveDabberWeed = (weedToRemove: string) => {
-    setDabberWeeds((prev) => prev.filter((w) => w !== weedToRemove));
-  };
-
   const handleMethodChange = (method: ApplicationMethod) => {
     setApplicationMethod(method);
 
     if (method !== "foliar") {
       setAdditionalWeeds([]);
-      setSelectedAdditionalWeed("");
     }
 
     if (method !== "dabber") {
       setDabberWeeds([]);
-      setSelectedDabberWeed("");
     }
 
     if (method === "basal") {
       setWeed("Ochna");
+      setWeedCondition("normal");
     }
   };
 
@@ -297,7 +267,12 @@ export default function SprayCalculator() {
       site_name: siteName.trim(),
       date: new Date().toLocaleDateString("en-CA"),
       application_method: applicationMethod,
-      weed: applicationMethod === "basal" ? "Ochna" : applicationMethod === "dabber" ? "Mixed" : weed,
+      weed:
+        applicationMethod === "basal"
+          ? "Ochna"
+          : applicationMethod === "dabber"
+          ? "Mixed"
+          : weed,
       additional_weeds: applicationMethod === "foliar" ? additionalWeeds : [],
       dabber_weeds: applicationMethod === "dabber" ? dabberWeeds : [],
       weed_condition:
@@ -409,7 +384,6 @@ export default function SprayCalculator() {
                   setWeed(e.target.value);
                   setWeedCondition("normal");
                   setAdditionalWeeds([]);
-                  setSelectedAdditionalWeed("");
                 }}
                 className="w-full outdoor-input h-14"
               >
@@ -463,29 +437,30 @@ export default function SprayCalculator() {
                 <Leaf className="w-4 h-4 text-primary" /> Additional Weeds With This Pack
               </label>
 
-              <div className="flex gap-2">
-                <select
-                  value={selectedAdditionalWeed}
-                  onChange={(e) => setSelectedAdditionalWeed(e.target.value)}
-                  className="w-full outdoor-input h-14"
-                >
-                  <option value="">Select additional weed...</option>
-                  {availableAdditionalWeedOptions.map((opt) => (
+              <select
+                multiple
+                value={additionalWeeds}
+                onChange={(e) => {
+                  const selectedValues = Array.from(
+                    e.target.selectedOptions,
+                    (option) => option.value
+                  );
+                  setAdditionalWeeds(selectedValues);
+                }}
+                className="w-full outdoor-input min-h-[160px] py-3"
+              >
+                {weedOptions
+                  .filter((opt) => opt !== weed)
+                  .map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
                     </option>
                   ))}
-                </select>
+              </select>
 
-                <button
-                  type="button"
-                  onClick={handleAddAdditionalWeed}
-                  className="px-4 h-14 rounded-xl bg-primary text-primary-foreground font-bold whitespace-nowrap flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Select all extra weeds treated with this same spray pack.
+              </p>
 
               {additionalWeeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
@@ -495,13 +470,6 @@ export default function SprayCalculator() {
                       className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold"
                     >
                       <span>{extraWeed}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAdditionalWeed(extraWeed)}
-                        className="text-primary/80 hover:text-primary"
-                      >
-                        ×
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -577,29 +545,28 @@ export default function SprayCalculator() {
                 <Leaf className="w-4 h-4 text-primary" /> Weeds Targeted With Dabber
               </label>
 
-              <div className="flex gap-2">
-                <select
-                  value={selectedDabberWeed}
-                  onChange={(e) => setSelectedDabberWeed(e.target.value)}
-                  className="w-full outdoor-input h-14"
-                >
-                  <option value="">Select weed...</option>
-                  {availableDabberWeedOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+              <select
+                multiple
+                value={dabberWeeds}
+                onChange={(e) => {
+                  const selectedValues = Array.from(
+                    e.target.selectedOptions,
+                    (option) => option.value
+                  );
+                  setDabberWeeds(selectedValues);
+                }}
+                className="w-full outdoor-input min-h-[160px] py-3"
+              >
+                {weedOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
 
-                <button
-                  type="button"
-                  onClick={handleAddDabberWeed}
-                  className="px-4 h-14 rounded-xl bg-primary text-primary-foreground font-bold whitespace-nowrap flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Select all weeds treated with the dabber.
+              </p>
 
               {dabberWeeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
@@ -609,13 +576,6 @@ export default function SprayCalculator() {
                       className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold"
                     >
                       <span>{targetWeed}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDabberWeed(targetWeed)}
-                        className="text-primary/80 hover:text-primary"
-                      >
-                        ×
-                      </button>
                     </div>
                   ))}
                 </div>
