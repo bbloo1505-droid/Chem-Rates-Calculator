@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +34,9 @@ type SprayHistoryItem = {
   volume?: number;
   site_type?: "bush" | "coastal";
   dye_strength?: "none" | "standard" | "strong";
+  application_method?: "foliar" | "dabber" | "basal";
+  additional_weeds?: string[];
+  dabber_weeds?: string[];
   results?: Record<string, string>;
   saved_at?: string;
 };
@@ -175,6 +180,7 @@ export default function HistoryPage() {
   const [submissionStatus, setSubmissionStatus] = useState<DailySubmissionMap>({});
   const [submittingDate, setSubmittingDate] = useState<string | null>(null);
   const [confirmSubmitDate, setConfirmSubmitDate] = useState<string | null>(null);
+  const [openSummaryDate, setOpenSummaryDate] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -467,9 +473,11 @@ export default function HistoryPage() {
                               <MapPin className="w-3 h-3" /> {item.site_name || "Unknown site"}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Package className="w-3 h-3" /> {item.volume || 0}L
+                              <Package className="w-3 h-3" /> {item.volume || 0}
+                                {item.application_method === "dabber" ? "ml" : "L"}
                             </span>
                             <span>{item.mix_type || "other"}</span>
+                            {item.application_method && <span>{item.application_method}</span>}
                             {item.weed_condition && item.weed_condition !== "normal" && (
                               <span>{item.weed_condition}</span>
                             )}
@@ -489,6 +497,32 @@ export default function HistoryPage() {
                           </button>
                         </div>
                       </div>
+
+                      {!!item.additional_weeds?.length && (
+                        <div className="mb-3">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                            Additional weeds
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.additional_weeds.map((weed) => (
+                              <Tag key={weed} label={weed} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!!item.dabber_weeds?.length && (
+                        <div className="mb-3">
+                          <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                            Dabber weeds
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {item.dabber_weeds.map((weed) => (
+                              <Tag key={weed} label={weed} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2">
                         {Object.entries(item.results || {}).map(([key, val]) => (
@@ -530,150 +564,258 @@ export default function HistoryPage() {
                       submittedAt: null,
                     };
 
+                    const isOpen = openSummaryDate === summary.date;
+
                     return (
-                      <div key={summary.date} className="tactile-card p-5 rounded-2xl space-y-4">
-                        <div className="flex justify-between items-start border-b border-border/50 pb-3 gap-3">
-                          <div>
-                            <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
-                              <CalendarDays className="w-4 h-4 text-primary" />
-                              {safeDateLabel(summary.date)}
-                            </h3>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {summary.entryCount} entries across {summary.sites.length} site
-                              {summary.sites.length === 1 ? "" : "s"}
+                      <div key={summary.date} className="tactile-card rounded-2xl overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenSummaryDate(isOpen ? null : summary.date)
+                          }
+                          className="w-full p-5 text-left"
+                        >
+                          <div className="flex justify-between items-start gap-3">
+                            <div>
+                              <h3 className="font-display font-bold text-lg text-foreground flex items-center gap-2">
+                                <CalendarDays className="w-4 h-4 text-primary" />
+                                {safeDateLabel(summary.date)}
+                              </h3>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {summary.entryCount} entries across {summary.sites.length} site
+                                {summary.sites.length === 1 ? "" : "s"}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-2">
+                              <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
+                                {formatAmount(summary.totalVolume)}L total
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <StatusBadge
+                                  status={statusRecord.status}
+                                  submittedAt={statusRecord.submittedAt}
+                                />
+                                {isOpen ? (
+                                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
                             </div>
                           </div>
-
-                          <div className="flex flex-col items-end gap-2">
-                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">
-                              {formatAmount(summary.totalVolume)}L total
-                            </span>
-                            <StatusBadge
-                              status={statusRecord.status}
-                              submittedAt={statusRecord.submittedAt}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                          <SummaryStat
-                            label="Entries"
-                            value={String(summary.entryCount)}
-                            icon={<Archive className="w-4 h-4 text-primary" />}
-                          />
-                          <SummaryStat
-                            label="Sites"
-                            value={String(summary.sites.length)}
-                            icon={<MapPin className="w-4 h-4 text-primary" />}
-                          />
-                          <SummaryStat
-                            label="Volume"
-                            value={`${formatAmount(summary.totalVolume)}L`}
-                            icon={<Package className="w-4 h-4 text-primary" />}
-                          />
-                        </div>
-
-                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                          <div className="flex items-center gap-2 mb-3">
-                            <FlaskConical className="w-4 h-4 text-primary" />
-                            <h4 className="font-bold text-foreground">Chemical Totals</h4>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            {Object.entries(summary.chemicalTotals)
-                              .sort(([a], [b]) => a.localeCompare(b))
-                              .map(([ingredient, total]) => (
-                                <div
-                                  key={ingredient}
-                                  className="rounded-lg border border-border/30 p-3 bg-white/60"
-                                >
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">
-                                    {ingredient}
-                                  </div>
-                                  <div className="font-bold text-foreground">
-                                    {formatAmount(total.amount)} {total.unit}
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                          <h4 className="font-bold text-foreground mb-3">Sites Worked</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {summary.sites.map((site) => (
-                              <Tag key={site} label={site} />
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                          <h4 className="font-bold text-foreground mb-3">Weeds Treated</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {summary.weeds.map((weed) => (
-                              <Tag key={weed} label={weed} />
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="rounded-xl border border-border/40 p-4 bg-background/50">
-                          <div className="flex items-center gap-2 mb-3">
-                            <BarChart3 className="w-4 h-4 text-primary" />
-                            <h4 className="font-bold text-foreground">Mixes Used</h4>
-                          </div>
-
-                          <div className="space-y-3">
-                            {summary.mixBreakdown.map((mix) => (
-                              <div
-                                key={mix.mixLabel}
-                                className="rounded-xl border border-border/30 p-3 bg-white/60"
-                              >
-                                <div className="flex items-center justify-between gap-3 mb-2">
-                                  <div className="font-bold text-foreground text-sm">
-                                    {mix.mixLabel}
-                                  </div>
-                                  <div className="text-sm font-bold text-primary">
-                                    {formatAmount(mix.totalVolume)}L
-                                  </div>
-                                </div>
-
-                                <div className="text-sm text-muted-foreground">
-                                  <span className="font-semibold text-foreground">Weeds:</span>{" "}
-                                  {mix.weeds.join(", ")}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  <span className="font-semibold text-foreground">Sites:</span>{" "}
-                                  {mix.sites.join(", ")}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  <span className="font-semibold text-foreground">Entries:</span>{" "}
-                                  {mix.entries}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setConfirmSubmitDate(summary.date)}
-                          disabled={
-                            submittingDate === summary.date ||
-                            statusRecord.status === "submitted"
-                          }
-                          className="w-full mt-2 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-60"
-                        >
-                          {submittingDate === summary.date ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Preparing Submit...
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-5 h-5" />
-                              Submit to Zoho
-                            </>
-                          )}
                         </button>
+
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-5 pb-5 space-y-4 border-t border-border/50">
+                                <div className="grid grid-cols-3 gap-3 pt-4">
+                                  <SummaryStat
+                                    label="Entries"
+                                    value={String(summary.entryCount)}
+                                    icon={<Archive className="w-4 h-4 text-primary" />}
+                                  />
+                                  <SummaryStat
+                                    label="Sites"
+                                    value={String(summary.sites.length)}
+                                    icon={<MapPin className="w-4 h-4 text-primary" />}
+                                  />
+                                  <SummaryStat
+                                    label="Volume"
+                                    value={`${formatAmount(summary.totalVolume)}L`}
+                                    icon={<Package className="w-4 h-4 text-primary" />}
+                                  />
+                                </div>
+
+                                <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <FlaskConical className="w-4 h-4 text-primary" />
+                                    <h4 className="font-bold text-foreground">Chemical Totals</h4>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {Object.entries(summary.chemicalTotals)
+                                      .sort(([a], [b]) => a.localeCompare(b))
+                                      .map(([ingredient, total]) => (
+                                        <div
+                                          key={ingredient}
+                                          className="rounded-lg border border-border/30 p-3 bg-white/60"
+                                        >
+                                          <div className="text-[10px] uppercase font-bold text-muted-foreground">
+                                            {ingredient}
+                                          </div>
+                                          <div className="font-bold text-foreground">
+                                            {formatAmount(total.amount)} {total.unit}
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                                  <h4 className="font-bold text-foreground mb-3">Sites Worked</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {summary.sites.map((site) => (
+                                      <Tag key={site} label={site} />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                                  <h4 className="font-bold text-foreground mb-3">Weeds Treated</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {summary.weeds.map((weed) => (
+                                      <Tag key={weed} label={weed} />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <BarChart3 className="w-4 h-4 text-primary" />
+                                    <h4 className="font-bold text-foreground">Mixes Used</h4>
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    {summary.mixBreakdown.map((mix) => (
+                                      <div
+                                        key={mix.mixLabel}
+                                        className="rounded-xl border border-border/30 p-3 bg-white/60"
+                                      >
+                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                          <div className="font-bold text-foreground text-sm">
+                                            {mix.mixLabel}
+                                          </div>
+                                          <div className="text-sm font-bold text-primary">
+                                            {formatAmount(mix.totalVolume)}L
+                                          </div>
+                                        </div>
+
+                                        <div className="text-sm text-muted-foreground">
+                                          <span className="font-semibold text-foreground">Weeds:</span>{" "}
+                                          {mix.weeds.join(", ")}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          <span className="font-semibold text-foreground">Sites:</span>{" "}
+                                          {mix.sites.join(", ")}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          <span className="font-semibold text-foreground">Entries:</span>{" "}
+                                          {mix.entries}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-xl border border-border/40 p-4 bg-background/50">
+                                  <h4 className="font-bold text-foreground mb-3">Entries for this day</h4>
+                                  <div className="space-y-3">
+                                    {summary.entries.map((entry) => (
+                                      <div
+                                        key={entry.id || entry.saved_at || `${entry.weed}-${entry.site_name}`}
+                                        className="rounded-xl border border-border/30 p-3 bg-white/60"
+                                      >
+                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                          <div>
+                                            <div className="font-bold text-foreground">
+                                              {entry.weed || "Unknown weed"}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                              {entry.site_name || "Unknown site"}
+                                            </div>
+                                          </div>
+
+                                          <div className="text-sm font-bold text-primary">
+                                            {entry.volume || 0}
+                                            {entry.application_method === "dabber" ? "ml" : "L"}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground uppercase">
+                                          {entry.application_method && <span>{entry.application_method}</span>}
+                                          {entry.mix_type && <span>{entry.mix_type}</span>}
+                                          {entry.weed_condition && entry.weed_condition !== "normal" && (
+                                            <span>{entry.weed_condition}</span>
+                                          )}
+                                        </div>
+
+                                        {!!entry.additional_weeds?.length && (
+                                          <div className="mt-3">
+                                            <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                                              Additional weeds
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                              {entry.additional_weeds.map((weed) => (
+                                                <Tag key={weed} label={weed} />
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {!!entry.dabber_weeds?.length && (
+                                          <div className="mt-3">
+                                            <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                                              Dabber weeds
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                              {entry.dabber_weeds.map((weed) => (
+                                                <Tag key={weed} label={weed} />
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-2 mt-3">
+                                          {Object.entries(entry.results || {}).map(([key, val]) => (
+                                            <div
+                                              key={key}
+                                              className="flex flex-col bg-background/70 p-2 rounded-lg border border-border/30"
+                                            >
+                                              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                                                {key}
+                                              </span>
+                                              <span className="font-bold text-sm text-foreground">
+                                                {val}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <button
+                                  onClick={() => setConfirmSubmitDate(summary.date)}
+                                  disabled={
+                                    submittingDate === summary.date ||
+                                    statusRecord.status === "submitted"
+                                  }
+                                  className="w-full mt-2 tactile-button bg-primary text-primary-foreground h-14 rounded-xl font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                                >
+                                  {submittingDate === summary.date ? (
+                                    <>
+                                      <Loader2 className="w-5 h-5 animate-spin" />
+                                      Preparing Submit...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-5 h-5" />
+                                      Submit to Zoho
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })
