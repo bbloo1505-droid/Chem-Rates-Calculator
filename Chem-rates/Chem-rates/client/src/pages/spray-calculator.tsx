@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplet, Leaf, MapPin, Beaker, CheckCircle2, RotateCcw } from "lucide-react";
+import {
+  Droplet,
+  Leaf,
+  MapPin,
+  Beaker,
+  CheckCircle2,
+  RotateCcw,
+  Plus,
+} from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 import {
   fetchWeedRows,
@@ -20,6 +28,8 @@ type MixType =
   | "fluroxy-foliar"
   | "fluroxy-basal"
   | "other";
+
+type ApplicationMethod = "foliar" | "dabber" | "basal";
 
 type EditableResult = {
   ingredient: string;
@@ -57,11 +67,24 @@ export default function SprayCalculator() {
   const [weed, setWeed] = useState("");
   const [volume, setVolume] = useState("");
 
+  const [applicationMethod, setApplicationMethod] =
+    useState<ApplicationMethod>("foliar");
+
   const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
-  const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
-  const [weedCondition, setWeedCondition] = useState<"normal" | "seeding">("normal");
+  const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">(
+    "standard"
+  );
+  const [weedCondition, setWeedCondition] = useState<"normal" | "seeding">(
+    "normal"
+  );
 
   const [editableResults, setEditableResults] = useState<EditableResult[]>([]);
+
+  const [additionalWeeds, setAdditionalWeeds] = useState<string[]>([]);
+  const [selectedAdditionalWeed, setSelectedAdditionalWeed] = useState("");
+
+  const [dabberWeeds, setDabberWeeds] = useState<string[]>([]);
+  const [selectedDabberWeed, setSelectedDabberWeed] = useState("");
 
   const { toast } = useToast();
 
@@ -82,23 +105,96 @@ export default function SprayCalculator() {
   }, []);
 
   const volumeNum = parseFloat(volume);
-  const isValid = !isNaN(volumeNum) && volumeNum > 0 && Boolean(weed) && Boolean(siteName.trim());
 
   const availableConditions = getWeedConditions(weedRows, weed);
-  const showConditionSelector = availableConditions.length > 1;
+  const showConditionSelector =
+    applicationMethod === "foliar" && availableConditions.length > 1;
+
+  const isFoliarValid =
+    applicationMethod === "foliar" &&
+    !isNaN(volumeNum) &&
+    volumeNum > 0 &&
+    Boolean(weed) &&
+    Boolean(siteName.trim());
+
+  const isDabberValid =
+    applicationMethod === "dabber" &&
+    !isNaN(volumeNum) &&
+    volumeNum > 0 &&
+    dabberWeeds.length > 0 &&
+    Boolean(siteName.trim());
+
+  const isBasalValid =
+    applicationMethod === "basal" &&
+    !isNaN(volumeNum) &&
+    volumeNum > 0 &&
+    Boolean(siteName.trim());
+
+  const isValid = isFoliarValid || isDabberValid || isBasalValid;
 
   const calculatedResults = useMemo(() => {
-    if (!isValid) return [];
+    if (applicationMethod === "foliar") {
+      if (!isFoliarValid) return [];
 
-    return calculateSprayMixFromSheet(
-      weed,
-      volumeNum,
-      siteType,
-      dyeStrength,
-      weedRows,
-      showConditionSelector ? weedCondition : "normal"
-    );
-  }, [isValid, weed, volumeNum, siteType, dyeStrength, weedRows, showConditionSelector, weedCondition]);
+      return calculateSprayMixFromSheet(
+        weed,
+        volumeNum,
+        siteType,
+        dyeStrength,
+        weedRows,
+        showConditionSelector ? weedCondition : "normal"
+      );
+    }
+
+    if (applicationMethod === "dabber") {
+      if (!isDabberValid) return [];
+
+      return [
+        {
+          ingredient: "Glyphosate",
+          amount: volumeNum / 2,
+          unit: "L",
+        },
+        {
+          ingredient: "Water",
+          amount: volumeNum / 2,
+          unit: "L",
+        },
+      ];
+    }
+
+    if (applicationMethod === "basal") {
+      if (!isBasalValid) return [];
+
+      // Adjust this fixed mix if your actual Ochna basal rate is different
+      return [
+        {
+          ingredient: "Garlon / Triclopyr",
+          amount: volumeNum * 0.25,
+          unit: "L",
+        },
+        {
+          ingredient: "Diesel / Basal carrier",
+          amount: volumeNum * 0.75,
+          unit: "L",
+        },
+      ];
+    }
+
+    return [];
+  }, [
+    applicationMethod,
+    isFoliarValid,
+    isDabberValid,
+    isBasalValid,
+    weed,
+    volumeNum,
+    siteType,
+    dyeStrength,
+    weedRows,
+    showConditionSelector,
+    weedCondition,
+  ]);
 
   useEffect(() => {
     if (!isValid || calculatedResults.length === 0) {
@@ -119,7 +215,6 @@ export default function SprayCalculator() {
     setEditableResults((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-
         const parsed = parseFloat(value);
 
         return {
@@ -146,6 +241,52 @@ export default function SprayCalculator() {
     });
   };
 
+  const availableAdditionalWeedOptions = weedOptions.filter(
+    (opt) => opt !== weed && !additionalWeeds.includes(opt)
+  );
+
+  const handleAddAdditionalWeed = () => {
+    if (!selectedAdditionalWeed) return;
+    setAdditionalWeeds((prev) => [...prev, selectedAdditionalWeed]);
+    setSelectedAdditionalWeed("");
+  };
+
+  const handleRemoveAdditionalWeed = (weedToRemove: string) => {
+    setAdditionalWeeds((prev) => prev.filter((w) => w !== weedToRemove));
+  };
+
+  const availableDabberWeedOptions = weedOptions.filter(
+    (opt) => !dabberWeeds.includes(opt)
+  );
+
+  const handleAddDabberWeed = () => {
+    if (!selectedDabberWeed) return;
+    setDabberWeeds((prev) => [...prev, selectedDabberWeed]);
+    setSelectedDabberWeed("");
+  };
+
+  const handleRemoveDabberWeed = (weedToRemove: string) => {
+    setDabberWeeds((prev) => prev.filter((w) => w !== weedToRemove));
+  };
+
+  const handleMethodChange = (method: ApplicationMethod) => {
+    setApplicationMethod(method);
+
+    if (method !== "foliar") {
+      setAdditionalWeeds([]);
+      setSelectedAdditionalWeed("");
+    }
+
+    if (method !== "dabber") {
+      setDabberWeeds([]);
+      setSelectedDabberWeed("");
+    }
+
+    if (method === "basal") {
+      setWeed("Ochna");
+    }
+  };
+
   const handleSave = async () => {
     if (!isValid || editableResults.length === 0) return;
 
@@ -155,12 +296,20 @@ export default function SprayCalculator() {
       user_id: "worker1",
       site_name: siteName.trim(),
       date: new Date().toLocaleDateString("en-CA"),
-      weed,
-      weed_condition: showConditionSelector ? weedCondition : "normal",
+      application_method: applicationMethod,
+      weed: applicationMethod === "basal" ? "Ochna" : applicationMethod === "dabber" ? "Mixed" : weed,
+      additional_weeds: applicationMethod === "foliar" ? additionalWeeds : [],
+      dabber_weeds: applicationMethod === "dabber" ? dabberWeeds : [],
+      weed_condition:
+        applicationMethod === "foliar"
+          ? showConditionSelector
+            ? weedCondition
+            : "normal"
+          : null,
       mix_type: mixType,
       volume: volumeNum,
-      site_type: siteType,
-      dye_strength: dyeStrength,
+      site_type: applicationMethod === "foliar" ? siteType : null,
+      dye_strength: applicationMethod === "foliar" ? dyeStrength : null,
       results: formatResultJson(editableResults),
       saved_at: new Date().toISOString(),
     };
@@ -224,120 +373,306 @@ export default function SprayCalculator() {
 
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <Leaf className="w-4 h-4 text-primary" /> Target Weed
+            <Beaker className="w-4 h-4 text-primary" /> Application Method
           </label>
-          <select
-            value={weed}
-            onChange={(e) => {
-              setWeed(e.target.value);
-              setWeedCondition("normal");
-            }}
-            className="w-full outdoor-input h-14"
-          >
-            <option value="" disabled>
-              Select a weed...
-            </option>
-            {weedOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
+          <div className="flex bg-muted/50 p-1 rounded-xl">
+            {(["foliar", "dabber", "basal"] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => handleMethodChange(method)}
+                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                  applicationMethod === method
+                    ? "bg-white shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {method === "foliar"
+                  ? "Foliar"
+                  : method === "dabber"
+                  ? "Dabber"
+                  : "Basal Bark"}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
-        {showConditionSelector && (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-              <Leaf className="w-4 h-4 text-primary" /> Weed Condition
-            </label>
-
-            <div className="flex bg-muted/50 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setWeedCondition("normal")}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
-                  weedCondition === "normal"
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+        {applicationMethod === "foliar" && (
+          <>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Leaf className="w-4 h-4 text-primary" /> Target Weed
+              </label>
+              <select
+                value={weed}
+                onChange={(e) => {
+                  setWeed(e.target.value);
+                  setWeedCondition("normal");
+                  setAdditionalWeeds([]);
+                  setSelectedAdditionalWeed("");
+                }}
+                className="w-full outdoor-input h-14"
               >
-                Not Seeding
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setWeedCondition("seeding")}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
-                  weedCondition === "seeding"
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Seed Heads
-              </button>
+                <option value="" disabled>
+                  Select a weed...
+                </option>
+                {weedOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
+
+            {showConditionSelector && (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                  <Leaf className="w-4 h-4 text-primary" /> Weed Condition
+                </label>
+
+                <div className="flex bg-muted/50 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setWeedCondition("normal")}
+                    className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                      weedCondition === "normal"
+                        ? "bg-white shadow-sm text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Not Seeding
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWeedCondition("seeding")}
+                    className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold transition-all ${
+                      weedCondition === "seeding"
+                        ? "bg-white shadow-sm text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Seed Heads
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Leaf className="w-4 h-4 text-primary" /> Additional Weeds With This Pack
+              </label>
+
+              <div className="flex gap-2">
+                <select
+                  value={selectedAdditionalWeed}
+                  onChange={(e) => setSelectedAdditionalWeed(e.target.value)}
+                  className="w-full outdoor-input h-14"
+                >
+                  <option value="">Select additional weed...</option>
+                  {availableAdditionalWeedOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleAddAdditionalWeed}
+                  className="px-4 h-14 rounded-xl bg-primary text-primary-foreground font-bold whitespace-nowrap flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+
+              {additionalWeeds.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {additionalWeeds.map((extraWeed) => (
+                    <div
+                      key={extraWeed}
+                      className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold"
+                    >
+                      <span>{extraWeed}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAdditionalWeed(extraWeed)}
+                        className="text-primary/80 hover:text-primary"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="15"
+                value={volume}
+                onChange={(e) => setVolume(e.target.value)}
+                className="w-full outdoor-input h-14"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                  <MapPin className="w-4 h-4 text-primary" /> Site Type
+                </label>
+                <div className="flex bg-muted/50 p-1 rounded-xl">
+                  {(["bush", "coastal"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setSiteType(type)}
+                      className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
+                        siteType === type
+                          ? "bg-white shadow-sm text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                  <Droplet className="w-4 h-4 text-primary" /> Dye
+                </label>
+                <div className="flex bg-muted/50 p-1 rounded-xl">
+                  {(["none", "standard", "strong"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setDyeStrength(type)}
+                      className={`flex-1 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
+                        dyeStrength === type
+                          ? "bg-white shadow-sm text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {type === "standard" ? "Std" : type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <Beaker className="w-4 h-4 text-primary" /> Spray Volume (Litres)
-          </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            placeholder="15"
-            value={volume}
-            onChange={(e) => setVolume(e.target.value)}
-            className="w-full outdoor-input h-14"
-          />
-        </div>
+        {applicationMethod === "dabber" && (
+          <>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Leaf className="w-4 h-4 text-primary" /> Weeds Targeted With Dabber
+              </label>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-              <MapPin className="w-4 h-4 text-primary" /> Site Type
-            </label>
-            <div className="flex bg-muted/50 p-1 rounded-xl">
-              {(["bush", "coastal"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setSiteType(type)}
-                  className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                    siteType === type
-                      ? "bg-white shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+              <div className="flex gap-2">
+                <select
+                  value={selectedDabberWeed}
+                  onChange={(e) => setSelectedDabberWeed(e.target.value)}
+                  className="w-full outdoor-input h-14"
                 >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <option value="">Select weed...</option>
+                  {availableDabberWeedOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
 
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-              <Droplet className="w-4 h-4 text-primary" /> Dye
-            </label>
-            <div className="flex bg-muted/50 p-1 rounded-xl">
-              {(["none", "standard", "strong"] as const).map((type) => (
                 <button
-                  key={type}
                   type="button"
-                  onClick={() => setDyeStrength(type)}
-                  className={`flex-1 py-2.5 px-1 rounded-lg text-xs font-bold capitalize transition-all ${
-                    dyeStrength === type
-                      ? "bg-white shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  onClick={handleAddDabberWeed}
+                  className="px-4 h-14 rounded-xl bg-primary text-primary-foreground font-bold whitespace-nowrap flex items-center gap-2"
                 >
-                  {type === "standard" ? "Std" : type}
+                  <Plus className="w-4 h-4" />
+                  Add
                 </button>
-              ))}
+              </div>
+
+              {dabberWeeds.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {dabberWeeds.map((targetWeed) => (
+                    <div
+                      key={targetWeed}
+                      className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-semibold"
+                    >
+                      <span>{targetWeed}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDabberWeed(targetWeed)}
+                        className="text-primary/80 hover:text-primary"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (Litres)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="2"
+                value={volume}
+                onChange={(e) => setVolume(e.target.value)}
+                className="w-full outdoor-input h-14"
+              />
+            </div>
+          </>
+        )}
+
+        {applicationMethod === "basal" && (
+          <>
+            <div className="rounded-2xl bg-primary/5 border border-primary/10 p-4">
+              <p className="text-sm font-semibold text-primary">
+                Basal bark is set to Ochna only.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Leaf className="w-4 h-4 text-primary" /> Target Weed
+              </label>
+              <input
+                type="text"
+                value="Ochna"
+                disabled
+                className="w-full outdoor-input h-14 opacity-70"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+                <Beaker className="w-4 h-4 text-primary" /> Basal Mix Volume (Litres)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="5"
+                value={volume}
+                onChange={(e) => setVolume(e.target.value)}
+                className="w-full outdoor-input h-14"
+              />
+            </div>
+          </>
+        )}
 
         <AnimatePresence>
           {isValid && editableResults.length > 0 && (
@@ -349,7 +684,11 @@ export default function SprayCalculator() {
             >
               <div className="flex items-center justify-between border-b-2 border-primary/20 pb-2">
                 <h2 className="text-xl font-display font-bold text-foreground">
-                  Required Mix
+                  {applicationMethod === "dabber"
+                    ? "Dabber Mix"
+                    : applicationMethod === "basal"
+                    ? "Basal Bark Mix"
+                    : "Required Mix"}
                 </h2>
                 <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
                   {volumeNum}L Total
@@ -358,7 +697,7 @@ export default function SprayCalculator() {
 
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Tap any value to adjust the calculated mix.
+                  Tap any value to adjust the mix before saving.
                 </p>
 
                 <button
@@ -376,7 +715,8 @@ export default function SprayCalculator() {
                   const highlight =
                     res.ingredient === "Glyphosate" ||
                     res.ingredient === "Fluroxy" ||
-                    res.ingredient === "Mets";
+                    res.ingredient === "Mets" ||
+                    res.ingredient === "Garlon / Triclopyr";
 
                   return (
                     <motion.div
