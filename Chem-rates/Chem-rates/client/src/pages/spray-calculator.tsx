@@ -144,26 +144,26 @@ export default function SprayCalculator() {
       );
     }
 
-  if (applicationMethod === "dabber") {
-  if (!isDabberValid) return [];
+    if (applicationMethod === "dabber") {
+      if (!isDabberValid) return [];
 
-  return [
-    {
-      ingredient: "Glyphosate",
-      amount: volumeNum / 2,
-      unit: "ml",
-    },
-    {
-      ingredient: "Water",
-      amount: volumeNum / 2,
-      unit: "ml",
-    },
-  ];
-}
+      return [
+        {
+          ingredient: "Glyphosate",
+          amount: volumeNum / 2,
+          unit: "ml",
+        },
+        {
+          ingredient: "Water",
+          amount: volumeNum / 2,
+          unit: "ml",
+        },
+      ];
+    }
+
     if (applicationMethod === "basal") {
       if (!isBasalValid) return [];
 
-      // Change this if your real Ochna basal rate is different
       return [
         {
           ingredient: "Garlon / Triclopyr",
@@ -270,6 +270,12 @@ export default function SprayCalculator() {
         applicationMethod === "basal"
           ? "Ochna"
           : applicationMethod === "dabber"
+          ? dabberWeeds.length === 1
+            ? dabberWeeds[0]
+            : dabberWeeds.length > 1
+            ? "Mixed"
+            : "Unknown"
+          : additionalWeeds.length > 0
           ? "Mixed"
           : weed,
       additional_weeds: applicationMethod === "foliar" ? additionalWeeds : [],
@@ -583,11 +589,12 @@ export default function SprayCalculator() {
 
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-              <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (ml)
+                <Beaker className="w-4 h-4 text-primary" /> Dabber Volume Used (ml)
               </label>
               <input
                 type="number"
                 inputMode="decimal"
+                step="50"
                 placeholder="200"
                 value={volume}
                 onChange={(e) => setVolume(e.target.value)}
@@ -650,7 +657,9 @@ export default function SprayCalculator() {
                     : "Required Mix"}
                 </h2>
                 <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
-                  {volumeNum}L Total
+                  {applicationMethod === "dabber"
+                    ? `${volumeNum}ml Total`
+                    : `${volumeNum}L Total`}
                 </span>
               </div>
 
