@@ -144,23 +144,22 @@ export default function SprayCalculator() {
       );
     }
 
-    if (applicationMethod === "dabber") {
-      if (!isDabberValid) return [];
+  if (applicationMethod === "dabber") {
+  if (!isDabberValid) return [];
 
-      return [
-        {
-          ingredient: "Glyphosate",
-          amount: volumeNum / 2,
-          unit: "L",
-        },
-        {
-          ingredient: "Water",
-          amount: volumeNum / 2,
-          unit: "L",
-        },
-      ];
-    }
-
+  return [
+    {
+      ingredient: "Glyphosate",
+      amount: volumeNum / 2,
+      unit: "ml",
+    },
+    {
+      ingredient: "Water",
+      amount: volumeNum / 2,
+      unit: "ml",
+    },
+  ];
+}
     if (applicationMethod === "basal") {
       if (!isBasalValid) return [];
 
