@@ -414,30 +414,59 @@ export default function SprayCalculator() {
         </div>
 
         <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
-            <Beaker className="w-4 h-4 text-primary" /> Application Method
-          </label>
-          <div className="flex bg-muted/50 p-1 rounded-xl">
-            {(["foliar", "dabber", "basal"] as const).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => handleMethodChange(method)}
-                className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                  applicationMethod === method
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {method === "foliar"
-                  ? "Foliar"
-                  : method === "dabber"
-                  ? "Dabber"
-                  : "Basal Bark"}
-              </button>
-            ))}
-          </div>
-        </div>
+  <label className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-wider ml-1">
+    <Beaker className="w-4 h-4 text-primary" /> Application Method
+  </label>
+
+  <div className="grid grid-cols-3 gap-3">
+
+    {/* FOLIAR */}
+    <button
+      type="button"
+      onClick={() => handleMethodChange("foliar")}
+      className={`rounded-2xl p-4 text-center border transition-all ${
+        applicationMethod === "foliar"
+          ? "bg-primary text-primary-foreground border-primary shadow-md"
+          : "bg-card border-border hover:border-primary/40"
+      }`}
+    >
+      <div className="text-2xl mb-1">🌿</div>
+      <div className="text-sm font-bold">Foliar</div>
+      <div className="text-xs opacity-70">Spray pack</div>
+    </button>
+
+    {/* DABBER */}
+    <button
+      type="button"
+      onClick={() => handleMethodChange("dabber")}
+      className={`rounded-2xl p-4 text-center border transition-all ${
+        applicationMethod === "dabber"
+          ? "bg-primary text-primary-foreground border-primary shadow-md"
+          : "bg-card border-border hover:border-primary/40"
+      }`}
+    >
+      <div className="text-2xl mb-1">🖊</div>
+      <div className="text-sm font-bold">Dabber</div>
+      <div className="text-xs opacity-70">Cut & paint</div>
+    </button>
+
+    {/* BASAL */}
+    <button
+      type="button"
+      onClick={() => handleMethodChange("basal")}
+      className={`rounded-2xl p-4 text-center border transition-all ${
+        applicationMethod === "basal"
+          ? "bg-primary text-primary-foreground border-primary shadow-md"
+          : "bg-card border-border hover:border-primary/40"
+      }`}
+    >
+      <div className="text-2xl mb-1">🪵</div>
+      <div className="text-sm font-bold">Basal</div>
+      <div className="text-xs opacity-70">Basal bark</div>
+    </button>
+
+  </div>
+</div>
 
         {applicationMethod === "foliar" && (
           <>
