@@ -769,25 +769,140 @@ export default function SprayCalculator() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {editableResults.map((res, i) => {
-                  const highlight =
-                    res.ingredient === "Glyphosate" ||
-                    res.ingredient === "Fluroxy" ||
-                    res.ingredient === "Mets" ||
-                    res.ingredient === "Garlon / Triclopyr";
+           <div className="grid grid-cols-2 gap-3">
+  {editableResults.map((res, i) => {
+    const ingredientStyles: Record<
+      string,
+      {
+        card: string;
+        badge: string;
+        unit: string;
+        input: string;
+        note: string;
+        icon: string;
+      }
+    > = {
+      Glyphosate: {
+        card: "bg-emerald-50 border-emerald-200 text-emerald-950",
+        badge: "bg-emerald-100 text-emerald-700",
+        unit: "text-emerald-700",
+        input: "text-emerald-950 placeholder:text-emerald-300",
+        note: "text-emerald-700/80",
+        icon: "🌿",
+      },
+      Mets: {
+        card: "bg-violet-50 border-violet-200 text-violet-950",
+        badge: "bg-violet-100 text-violet-700",
+        unit: "text-violet-700",
+        input: "text-violet-950 placeholder:text-violet-300",
+        note: "text-violet-700/80",
+        icon: "🧪",
+      },
+      Fluroxy: {
+        card: "bg-amber-50 border-amber-200 text-amber-950",
+        badge: "bg-amber-100 text-amber-700",
+        unit: "text-amber-700",
+        input: "text-amber-950 placeholder:text-amber-300",
+        note: "text-amber-700/80",
+        icon: "🍂",
+      },
+      "Garlon / Triclopyr": {
+        card: "bg-orange-50 border-orange-200 text-orange-950",
+        badge: "bg-orange-100 text-orange-700",
+        unit: "text-orange-700",
+        input: "text-orange-950 placeholder:text-orange-300",
+        note: "text-orange-700/80",
+        icon: "🪵",
+      },
+      "Diesel / Basal carrier": {
+        card: "bg-stone-50 border-stone-200 text-stone-950",
+        badge: "bg-stone-200 text-stone-700",
+        unit: "text-stone-700",
+        input: "text-stone-950 placeholder:text-stone-400",
+        note: "text-stone-700/80",
+        icon: "⛽",
+      },
+      Water: {
+        card: "bg-sky-50 border-sky-200 text-sky-950",
+        badge: "bg-sky-100 text-sky-700",
+        unit: "text-sky-700",
+        input: "text-sky-950 placeholder:text-sky-300",
+        note: "text-sky-700/80",
+        icon: "💧",
+      },
+      Dye: {
+        card: "bg-pink-50 border-pink-200 text-pink-950",
+        badge: "bg-pink-100 text-pink-700",
+        unit: "text-pink-700",
+        input: "text-pink-950 placeholder:text-pink-300",
+        note: "text-pink-700/80",
+        icon: "🎨",
+      },
+    };
 
-                  return (
-                    <motion.div
-                      key={`${res.ingredient}-${i}`}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className={`rounded-3xl p-5 shadow-sm border ${
-                        highlight
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card text-card-foreground border-border"
-                      }`}
+    const style = ingredientStyles[res.ingredient] ?? {
+      card: "bg-card border-border text-card-foreground",
+      badge: "bg-muted text-muted-foreground",
+      unit: "text-primary/75",
+      input: "text-foreground placeholder:text-muted-foreground",
+      note: "text-muted-foreground",
+      icon: "🧴",
+    };
+
+    return (
+      <motion.div
+        key={`${res.ingredient}-${i}`}
+        initial={{ opacity: 0, y: 12, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ delay: i * 0.08 }}
+        className={`relative rounded-3xl p-4 shadow-sm border overflow-hidden ${style.card}`}
+      >
+        <div className="absolute top-0 right-0 text-4xl opacity-10 pointer-events-none pr-3 pt-2">
+          {style.icon}
+        </div>
+
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="min-w-0">
+            <div className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}>
+              {res.ingredient}
+            </div>
+          </div>
+
+          <div className="text-lg leading-none">
+            {style.icon}
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white/60 border border-white/50 px-3 py-4">
+          <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-2">
+            Amount
+          </div>
+
+          <div className="flex items-end gap-2">
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              value={Number.isFinite(res.amount) ? res.amount : ""}
+              onChange={(e) => handleAmountChange(i, e.target.value)}
+              className={`w-full bg-transparent border-none outline-none text-4xl font-black p-0 appearance-none ${style.input}`}
+            />
+            <span className={`text-lg font-bold mb-1 ${style.unit}`}>
+              {res.unit}
+            </span>
+          </div>
+        </div>
+
+        {calculatedResults[i] && (
+          <div className={`mt-3 text-xs font-medium ${style.note}`}>
+            Calculated: {formatDisplayAmount(calculatedResults[i].amount)}{" "}
+            {calculatedResults[i].unit}
+          </div>
+        )}
+      </motion.div>
+    );
+  })}
+</div>
                     >
                       <div
                         className={`text-sm font-bold uppercase tracking-wide ${
