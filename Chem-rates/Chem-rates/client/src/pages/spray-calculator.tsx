@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplet, Leaf, MapPin, Beaker, CheckCircle2 } from "lucide-react";
+import { Droplet, Leaf, MapPin, Beaker, CheckCircle2, RotateCcw } from "lucide-react";
 import { MobileLayout } from "@/components/layout/mobile-layout";
-import { StatCard } from "@/components/ui/stat-card";
 import {
   fetchWeedRows,
   getWeedOptions,
@@ -22,6 +21,12 @@ type MixType =
   | "fluroxy-basal"
   | "other";
 
+type EditableResult = {
+  ingredient: string;
+  amount: number;
+  unit: string;
+};
+
 function getMixType(results: { ingredient: string }[]): MixType {
   const ingredients = results.map((r) => r.ingredient.toLowerCase());
 
@@ -38,6 +43,10 @@ function getMixType(results: { ingredient: string }[]): MixType {
   return "other";
 }
 
+function formatDisplayAmount(amount: number) {
+  return amount % 1 === 0 ? amount.toString() : amount.toFixed(1);
+}
+
 export default function SprayCalculator() {
   const [weedRows, setWeedRows] = useState<SheetWeedRow[]>([]);
   const [weedOptions, setWeedOptions] = useState<string[]>([]);
@@ -51,6 +60,8 @@ export default function SprayCalculator() {
   const [siteType, setSiteType] = useState<"bush" | "coastal">("bush");
   const [dyeStrength, setDyeStrength] = useState<"none" | "standard" | "strong">("standard");
   const [weedCondition, setWeedCondition] = useState<"normal" | "seeding">("normal");
+
+  const [editableResults, setEditableResults] = useState<EditableResult[]>([]);
 
   const { toast } = useToast();
 
@@ -76,21 +87,69 @@ export default function SprayCalculator() {
   const availableConditions = getWeedConditions(weedRows, weed);
   const showConditionSelector = availableConditions.length > 1;
 
-  const results = isValid
-    ? calculateSprayMixFromSheet(
-        weed,
-        volumeNum,
-        siteType,
-        dyeStrength,
-        weedRows,
-        showConditionSelector ? weedCondition : "normal"
-      )
-    : [];
+  const calculatedResults = useMemo(() => {
+    if (!isValid) return [];
+
+    return calculateSprayMixFromSheet(
+      weed,
+      volumeNum,
+      siteType,
+      dyeStrength,
+      weedRows,
+      showConditionSelector ? weedCondition : "normal"
+    );
+  }, [isValid, weed, volumeNum, siteType, dyeStrength, weedRows, showConditionSelector, weedCondition]);
+
+  useEffect(() => {
+    if (!isValid || calculatedResults.length === 0) {
+      setEditableResults([]);
+      return;
+    }
+
+    setEditableResults(
+      calculatedResults.map((res) => ({
+        ingredient: res.ingredient,
+        amount: res.amount,
+        unit: res.unit,
+      }))
+    );
+  }, [calculatedResults, isValid]);
+
+  const handleAmountChange = (index: number, value: string) => {
+    setEditableResults((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+
+        const parsed = parseFloat(value);
+
+        return {
+          ...item,
+          amount: value === "" || Number.isNaN(parsed) ? 0 : parsed,
+        };
+      })
+    );
+  };
+
+  const handleResetMix = () => {
+    setEditableResults(
+      calculatedResults.map((res) => ({
+        ingredient: res.ingredient,
+        amount: res.amount,
+        unit: res.unit,
+      }))
+    );
+
+    toast({
+      title: "Mix reset",
+      description: "Values restored to calculated amounts.",
+      duration: 2500,
+    });
+  };
 
   const handleSave = async () => {
-    if (!isValid) return;
+    if (!isValid || editableResults.length === 0) return;
 
-    const mixType = getMixType(results);
+    const mixType = getMixType(editableResults);
 
     const entry = {
       user_id: "worker1",
@@ -102,7 +161,7 @@ export default function SprayCalculator() {
       volume: volumeNum,
       site_type: siteType,
       dye_strength: dyeStrength,
-      results: formatResultJson(results),
+      results: formatResultJson(editableResults),
       saved_at: new Date().toISOString(),
     };
 
@@ -281,7 +340,7 @@ export default function SprayCalculator() {
         </div>
 
         <AnimatePresence>
-          {isValid && results.length > 0 && (
+          {isValid && editableResults.length > 0 && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -297,21 +356,83 @@ export default function SprayCalculator() {
                 </span>
               </div>
 
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Tap any value to adjust the calculated mix.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleResetMix}
+                  className="flex items-center gap-2 rounded-lg border border-primary/20 px-3 py-2 text-sm font-bold text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                {results.map((res, i) => (
-                  <StatCard
-                    key={`${res.ingredient}-${i}`}
-                    title={res.ingredient}
-                    value={res.amount % 1 === 0 ? res.amount : res.amount.toFixed(1)}
-                    unit={res.unit}
-                    delay={i * 0.1}
-                    highlight={
-                      res.ingredient === "Glyphosate" ||
-                      res.ingredient === "Fluroxy" ||
-                      res.ingredient === "Mets"
-                    }
-                  />
-                ))}
+                {editableResults.map((res, i) => {
+                  const highlight =
+                    res.ingredient === "Glyphosate" ||
+                    res.ingredient === "Fluroxy" ||
+                    res.ingredient === "Mets";
+
+                  return (
+                    <motion.div
+                      key={`${res.ingredient}-${i}`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className={`rounded-3xl p-5 shadow-sm border ${
+                        highlight
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-card-foreground border-border"
+                      }`}
+                    >
+                      <div
+                        className={`text-sm font-bold uppercase tracking-wide ${
+                          highlight ? "text-primary-foreground/80" : "text-primary"
+                        }`}
+                      >
+                        {res.ingredient}
+                      </div>
+
+                      <div className="mt-5 flex items-end gap-2">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          value={Number.isFinite(res.amount) ? res.amount : ""}
+                          onChange={(e) => handleAmountChange(i, e.target.value)}
+                          className={`w-full bg-transparent border-none outline-none text-4xl font-bold p-0 appearance-none ${
+                            highlight
+                              ? "text-primary-foreground placeholder:text-primary-foreground/40"
+                              : "text-foreground placeholder:text-muted-foreground"
+                          }`}
+                        />
+                        <span
+                          className={`text-xl font-semibold mb-1 ${
+                            highlight ? "text-primary-foreground/85" : "text-primary/75"
+                          }`}
+                        >
+                          {res.unit}
+                        </span>
+                      </div>
+
+                      {calculatedResults[i] && (
+                        <p
+                          className={`mt-3 text-xs ${
+                            highlight ? "text-primary-foreground/75" : "text-muted-foreground"
+                          }`}
+                        >
+                          Calculated: {formatDisplayAmount(calculatedResults[i].amount)}{" "}
+                          {calculatedResults[i].unit}
+                        </p>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
 
               <motion.button
