@@ -365,10 +365,11 @@ export default function SprayCalculator() {
 
   return (
     <MobileLayout title="Weed Treatment Log">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
+     <motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  className="space-y-6 w-full max-w-full"
+>
       >
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
@@ -764,7 +765,7 @@ export default function SprayCalculator() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 w-full">
                 {editableResults.map((res, i) => {
                   const ingredientStyles: Record<
                     string,
